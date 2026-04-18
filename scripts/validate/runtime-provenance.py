@@ -72,6 +72,54 @@ def loaded_native_libraries() -> list[str]:
     return []
 
 
+def normalize_path(value: str | Path) -> str:
+    return str(Path(value).resolve(strict=False))
+
+
+def path_is_within(candidate: str | Path, root: str | Path | None) -> bool:
+    if not root:
+        return False
+    candidate_path = Path(candidate).resolve(strict=False)
+    root_path = Path(root).resolve(strict=False)
+    try:
+        candidate_path.relative_to(root_path)
+    except ValueError:
+        return False
+    return True
+
+
+def summarize_libraries(
+    libraries: list[str],
+    *,
+    target_venv: str | None,
+    target_sdk_root: str | None,
+) -> dict[str, object]:
+    target_venv = None if not target_venv else normalize_path(target_venv)
+    target_sdk_root = None if not target_sdk_root else normalize_path(target_sdk_root)
+
+    vtk_related = [
+        normalize_path(lib)
+        for lib in libraries
+        if "vtk" in lib.lower() or "codecpp" in lib.lower()
+    ]
+
+    inside_venv = [lib for lib in vtk_related if path_is_within(lib, target_venv)]
+    inside_sdk = [lib for lib in vtk_related if path_is_within(lib, target_sdk_root)]
+    outside_venv = [lib for lib in vtk_related if target_venv and not path_is_within(lib, target_venv)]
+
+    violations = [f"Runtime library loaded from SDK tree: {lib}" for lib in inside_sdk]
+    violations.extend(f"Runtime library loaded outside target venv: {lib}" for lib in outside_venv)
+
+    return {
+        "vtk_related_libraries": vtk_related,
+        "inside_target_venv": inside_venv,
+        "inside_target_sdk": inside_sdk,
+        "outside_target_venv": outside_venv,
+        "violations": violations,
+        "ok": not violations,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--modules", nargs="*", default=["vtk", "pyvista", "codecpp"])
@@ -82,36 +130,16 @@ def main() -> int:
 
     origins, errors = load_modules(args.modules)
     libraries = loaded_native_libraries()
-
-    vtk_related = [
-        lib
-        for lib in libraries
-        if "vtk" in lib.lower() or "codecpp" in lib.lower()
-    ]
-
-    violations = []
-    if args.target_sdk_root:
-        sdk_root = str(Path(args.target_sdk_root).resolve(strict=False))
-        for lib in vtk_related:
-            try:
-                Path(lib).resolve(strict=False).relative_to(sdk_root)
-            except ValueError:
-                continue
-            violations.append(f"Runtime library loaded from SDK tree: {lib}")
-
-    if args.target_venv:
-        venv_root = str(Path(args.target_venv).resolve(strict=False))
-        for lib in vtk_related:
-            try:
-                Path(lib).resolve(strict=False).relative_to(venv_root)
-            except ValueError:
-                violations.append(f"Runtime library loaded outside target venv: {lib}")
+    summary = summarize_libraries(
+        libraries,
+        target_venv=args.target_venv,
+        target_sdk_root=args.target_sdk_root,
+    )
 
     payload = {
         "module_origins": origins,
         "module_errors": errors,
-        "vtk_related_libraries": vtk_related,
-        "violations": violations,
+        **summary,
     }
 
     if args.json:
@@ -122,16 +150,19 @@ def main() -> int:
             print(f"{name}: {origin or 'not found'}")
             if error:
                 print(f"  error: {error}")
-        if vtk_related:
+        if summary["vtk_related_libraries"]:
             print("Loaded vtk-related libraries:")
-            for lib in vtk_related:
+            for lib in summary["vtk_related_libraries"]:
                 print(f"  - {lib}")
-        if violations:
+            print(f"Summary: {len(summary['inside_target_venv'])} inside target venv, {len(summary['outside_target_venv'])} outside target venv.")
+        if summary["ok"]:
+            print("Runtime provenance OK: vtk/codecpp native libraries are resolved from the target venv and not from the SDK tree.")
+        if summary["violations"]:
             print("Violations:")
-            for violation in violations:
+            for violation in summary["violations"]:
                 print(f"  - {violation}")
 
-    return 1 if violations else 0
+    return 1 if summary["violations"] else 0
 
 
 if __name__ == "__main__":

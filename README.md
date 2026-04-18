@@ -100,4 +100,15 @@ The repository now contains:
 - a `codepy` package skeleton using PyVista
 - a `pmanager` Typer CLI skeleton
 
-It does not yet ship prebuilt VTK artifacts, and the exact validated `pyvista` pin still needs to be confirmed experimentally against the local `vtk==9.3.1` wheel on the two phase-1 targets.
+## Current validation status
+
+Windows phase 1 is now validated for:
+
+- building VTK 9.3.1 from source with Python wrapping enabled
+- generating a local Windows wheel and installing it into the target venv
+- installing `pyvista` against that local VTK runtime
+- building and installing `codecpp`
+- importing `codecpp` and `pyvista` in both orders inside the same Python process
+- resolving VTK runtime DLLs from the venv instead of the SDK tree
+
+Ubuntu remains the next platform to validate end-to-end.
