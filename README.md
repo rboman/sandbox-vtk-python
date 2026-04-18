@@ -50,14 +50,15 @@ The repository is intentionally ready for more Python versions later, but these 
 
 1. Enter a sanitized shell using `scripts/windows/enter-clean-dev-shell.ps1` or `scripts/ubuntu/enter-clean-dev-shell.sh`.
 2. Create the target venv under `.venvs/<target>/`.
-3. Audit the environment before doing any build or install work.
-4. Build VTK from `external/src/vtk-9.3.1` into `external/build/vtk-9.3.1/<target>/`.
-5. Install the VTK SDK into `external/install/vtk-9.3.1/<target>/sdk/`.
-6. Build a local `vtk` wheel into `external/wheelhouse/vtk-9.3.1/<target>/`.
-7. Install the local `vtk` wheel into the target venv.
-8. Install `pyvista` under a pinned constraints file.
-9. Build and install `packages/codecpp`.
-10. Run provenance and import-order validations.
+3. Fetch VTK sources into `external/src/vtk-9.3.1` using `scripts/windows/fetch-vtk-source.cmd` on Windows.
+4. Audit the environment before doing any build or install work.
+5. Build VTK from `external/src/vtk-9.3.1` into `external/build/vtk-9.3.1/<target>/`.
+6. Install the VTK SDK into `external/install/vtk-9.3.1/<target>/sdk/`.
+7. Build a local `vtk` wheel into `external/wheelhouse/vtk-9.3.1/<target>/`.
+8. Install the local `vtk` wheel into the target venv.
+9. Install `pyvista` under a pinned constraints file.
+10. Build and install `packages/codecpp`.
+11. Run provenance and import-order validations.
 
 ## Why the repository is strict about environment hygiene
 

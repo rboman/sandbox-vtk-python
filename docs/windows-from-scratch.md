@@ -46,15 +46,37 @@ C:\Python310\python.exe -m venv .venvs\win-amd64-msvc2022-py310-release
 
 You do **not** need to activate the venv globally. All supported commands call the target interpreter explicitly.
 
-## 2. Place the VTK source tree
+## 2. Fetch the VTK source tree
 
-The repository currently expects the VTK source tree to exist at:
+Use the repo helper:
+
+```powershell
+.\scripts\windows\fetch-vtk-source.cmd
+```
+
+This wrapper calls PowerShell with `-ExecutionPolicy Bypass`, which avoids failures on machines where direct `.ps1` execution is disabled.
+
+On Windows, the helper now prefers `tar.exe` instead of `Expand-Archive`, because it is usually much faster on large source archives.
+
+After that, the repository expects the VTK source tree at:
 
 ```text
 external\src\vtk-9.3.1\
 ```
 
-That directory must contain the extracted VTK 9.3.1 source tree, not just the archive.
+If you need to replace an existing extracted tree, run:
+
+```powershell
+.\scripts\windows\fetch-vtk-source.cmd -Force
+```
+
+If extraction is still very slow and `Antimalware Service Executable` spikes, add Defender exclusions for:
+
+- your fresh clone root
+- `.tmp\`
+- `external\src\`
+
+Keep those exclusions narrow to this sandbox workspace rather than excluding a broad parent directory like all of `D:\dev`.
 
 ## 3. Enter the sanitized repo shell
 
