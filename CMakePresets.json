@@ -1,0 +1,76 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 24,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "vtk-win-amd64-msvc2022-py310-release",
+      "displayName": "VTK Windows AMD64 MSVC 2022 Python 3.10 Release",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "sourceDir": "${sourceDir}/external/src/vtk-9.3.1",
+      "binaryDir": "${sourceDir}/external/build/vtk-9.3.1/win-amd64-msvc2022-py310-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/external/install/vtk-9.3.1/win-amd64-msvc2022-py310-release/sdk",
+        "VTK_WRAP_PYTHON": "ON",
+        "VTK_WHEEL_BUILD": "ON",
+        "VTK_GROUP_ENABLE_Rendering": "WANT",
+        "VTK_GROUP_ENABLE_Views": "WANT",
+        "VTK_GROUP_ENABLE_StandAlone": "WANT",
+        "VTK_GROUP_ENABLE_Qt": "WANT",
+        "VTK_MODULE_ENABLE_VTK_GUISupportQtQuick": "DONT_WANT",
+        "VTK_MODULE_ENABLE_VTK_RenderingOpenGL2": "WANT",
+        "VTK_MODULE_ENABLE_VTK_InteractionStyle": "WANT",
+        "VTK_MODULE_ENABLE_VTK_RenderingMatplotlib": "WANT"
+      }
+    },
+    {
+      "name": "vtk-linux-x86_64-gcc-py312-release",
+      "displayName": "VTK Linux x86_64 GCC Python 3.12 Release",
+      "generator": "Ninja",
+      "sourceDir": "${sourceDir}/external/src/vtk-9.3.1",
+      "binaryDir": "${sourceDir}/external/build/vtk-9.3.1/linux-x86_64-gcc-py312-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/external/install/vtk-9.3.1/linux-x86_64-gcc-py312-release/sdk",
+        "VTK_WRAP_PYTHON": "ON",
+        "VTK_WHEEL_BUILD": "ON",
+        "VTK_GROUP_ENABLE_Rendering": "WANT",
+        "VTK_GROUP_ENABLE_Views": "WANT",
+        "VTK_GROUP_ENABLE_StandAlone": "WANT",
+        "VTK_GROUP_ENABLE_Qt": "WANT",
+        "VTK_MODULE_ENABLE_VTK_GUISupportQtQuick": "DONT_WANT",
+        "VTK_MODULE_ENABLE_VTK_RenderingOpenGL2": "WANT",
+        "VTK_MODULE_ENABLE_VTK_InteractionStyle": "WANT",
+        "VTK_MODULE_ENABLE_VTK_RenderingMatplotlib": "WANT"
+      }
+    },
+    {
+      "name": "codecpp-win-amd64-msvc2022-py310-release",
+      "displayName": "codecpp Windows AMD64 MSVC 2022 Python 3.10 Release",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "sourceDir": "${sourceDir}/packages/codecpp",
+      "binaryDir": "${sourceDir}/external/build/codecpp/win-amd64-msvc2022-py310-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_PREFIX_PATH": "${sourceDir}/external/install/vtk-9.3.1/win-amd64-msvc2022-py310-release/sdk"
+      }
+    },
+    {
+      "name": "codecpp-linux-x86_64-gcc-py312-release",
+      "displayName": "codecpp Linux x86_64 GCC Python 3.12 Release",
+      "generator": "Ninja",
+      "sourceDir": "${sourceDir}/packages/codecpp",
+      "binaryDir": "${sourceDir}/external/build/codecpp/linux-x86_64-gcc-py312-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_PREFIX_PATH": "${sourceDir}/external/install/vtk-9.3.1/linux-x86_64-gcc-py312-release/sdk"
+      }
+    }
+  ]
+}

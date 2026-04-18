@@ -1,0 +1,89 @@
+# Environment Hygiene
+
+## Why this matters
+
+This repository is designed for machines that may already expose unmanaged SDKs and Python packages globally.
+
+On the current Windows machine used for development, there are already examples of:
+
+- global `INCLUDE` and `LIB`
+- pre-existing `vtk==9.3.1` outside any project venv
+- injected `sys.path` entries unrelated to this repository
+
+That is exactly why the repo must audit and sanitize aggressively.
+
+## Variables treated as unsafe by default
+
+### Python-related
+
+- `PYTHONPATH`
+- `PYTHONHOME`
+- `PYTHONSTARTUP`
+- `VIRTUAL_ENV` when it does not match the target
+- `PIP_INDEX_URL`
+- `PIP_EXTRA_INDEX_URL`
+- `PIP_FIND_LINKS`
+- `PIP_CONSTRAINT`
+- `PIP_REQUIRE_VIRTUALENV`
+
+### Native/CMake-related
+
+- `CMAKE_PREFIX_PATH`
+- `VTK_DIR`
+- `CMAKE_TOOLCHAIN_FILE`
+- `INCLUDE`
+- `LIB`
+- `LIBRARY_PATH`
+- `CPATH`
+
+### Runtime-loader-related
+
+- `PATH`
+- `LD_LIBRARY_PATH`
+- `DYLD_LIBRARY_PATH`
+
+### Environment managers
+
+- `CONDA_PREFIX`
+- `CONDA_DEFAULT_ENV`
+
+## Repo policy
+
+- Sanitized shell entry scripts construct a minimal environment instead of inheriting everything.
+- Audit scripts can run in `audit` mode or `strict` mode.
+- `strict` mode must fail on suspicious global injections.
+- `PYTHONNOUSERSITE=1` is forced during repo-managed validation.
+
+## Practical guidance
+
+### Windows
+
+- Start with `scripts/windows/enter-clean-dev-shell.ps1`.
+- Do not reuse a terminal that has already sourced historical SDK setup scripts.
+- Treat any successful run from a "dirty" shell as untrusted until it also succeeds in a clean repo shell.
+
+### Ubuntu
+
+- Start with `scripts/ubuntu/enter-clean-dev-shell.sh`.
+- Do not source `/opt/vtk-*` helper scripts before using the repo.
+- Prefer `env -i`-style isolation for reproducibility.
+
+## Success criterion
+
+A supported command sequence must remain valid after removing:
+
+- global Python site-package injections
+- global VTK-related path entries
+- native build helper variables inherited from unrelated projects
+
+## Important nuance
+
+A clean shell is necessary, but not sufficient.
+
+If the selected interpreter is itself a global Python installation that already contains `vtk` in its own `site-packages`, then:
+
+- `PYTHONNOUSERSITE=1` will not hide that package
+- a sanitized `PATH` will not hide that package
+- the audit must still report it
+
+For this reason, all supported repo workflows must switch to a target venv before any meaningful runtime validation.

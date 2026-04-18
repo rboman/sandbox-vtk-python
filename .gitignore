@@ -1,5 +1,6 @@
 # Python
 .venv/
+.venvs/
 venv/
 __pycache__/
 *.pyc
@@ -14,12 +15,14 @@ dist/
 *.dll
 *.lib
 *.exp
+*.whl
 
 # CMake
 CMakeCache.txt
 CMakeFiles/
 cmake-build-*/
 compile_commands.json
+_skbuild/
 
 # IDE
 .vscode/
@@ -34,6 +37,16 @@ external/install/*
 !external/install/.gitkeep
 external/wheelhouse/*
 !external/wheelhouse/.gitkeep
+
+# Package-local build outputs
+packages/*/build/
+packages/*/dist/
+packages/*/*.egg-info/
+
+# Test outputs
+.pytest_cache/
+.ruff_cache/
+
 
 # OS
 .DS_Store

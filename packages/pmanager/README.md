@@ -1,7 +1,10 @@
 # pmanager
 
-Future Typer-based CLI skeleton for orchestrating:
-- dependency acquisition
-- builds
-- installs
-- validation
+Future Typer-based orchestrator for:
+
+- environment auditing
+- target discovery
+- validated install flows
+- build orchestration
+
+Phase 1 only requires a CLI skeleton that exposes stable command names and delegates to the repository scripts.

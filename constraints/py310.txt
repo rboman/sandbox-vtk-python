@@ -1,0 +1,5 @@
+# Phase-1 Windows baseline.
+# Keep the VTK pin exact so pip cannot silently upgrade or replace the runtime.
+vtk==9.3.1
+pyvista==0.44.2
+

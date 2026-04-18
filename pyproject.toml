@@ -2,9 +2,14 @@
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
-[tool.ruff]
-line-length = 100
-
 [tool.pytest.ini_options]
+addopts = "-p no:cacheprovider"
+pythonpath = [".", "packages/codecpp/src", "packages/codepy/src", "packages/pmanager/src"]
 testpaths = ["tests"]
 
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

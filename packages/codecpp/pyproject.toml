@@ -1,0 +1,19 @@
+[build-system]
+requires = [
+  "scikit-build-core>=0.10",
+  "setuptools>=68",
+  "wheel",
+]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "codecpp"
+version = "0.1.0"
+description = "Native C++/SWIG sandbox package built against a custom VTK SDK."
+requires-python = ">=3.10"
+readme = "README.md"
+
+[tool.scikit-build]
+wheel.packages = ["src/codecpp"]
+cmake.build-type = "Release"
+
