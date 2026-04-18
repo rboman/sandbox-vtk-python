@@ -86,6 +86,7 @@ That is why the supported workflow always moves quickly to a target venv and tre
 - `docs/runtime-model.md`
 - `docs/environment-hygiene.md`
 - `docs/validation-matrix.md`
+- `docs/windows-from-scratch.md`
 - `docs/decisions/0001-vtk-sdk-vs-python-runtime.md`
 
 ## Current implementation scope
