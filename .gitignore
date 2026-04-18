@@ -1,0 +1,40 @@
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+*.so
+*.dll
+*.lib
+*.exp
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake-build-*/
+compile_commands.json
+
+# IDE
+.vscode/
+.idea/
+
+# External builds and artifacts
+external/src/*
+!external/src/.gitkeep
+external/build/*
+!external/build/.gitkeep
+external/install/*
+!external/install/.gitkeep
+external/wheelhouse/*
+!external/wheelhouse/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
