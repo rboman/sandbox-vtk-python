@@ -27,6 +27,20 @@ $WheelhouseDir = Join-Path $RepoRoot "external\wheelhouse\vtk-9.3.1\$Target"
 $AuditScript = Join-Path $RepoRoot "scripts\validate\audit-environment.py"
 $ManifestPath = Join-Path $BuildDir "build-manifest.json"
 
+function Invoke-External {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath,
+        [string[]]$Arguments = @()
+    )
+
+    & $FilePath @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        $renderedArgs = $Arguments -join " "
+        throw "Command failed with exit code ${LASTEXITCODE}: $FilePath $renderedArgs"
+    }
+}
+
 function Get-CMakeCacheGenerator {
     param([string]$BuildDirPath)
 
@@ -101,12 +115,14 @@ function Resolve-BuildChoice {
             return @{
                 Backend = "ninja"
                 Generator = $RequestedGenerator
+                NinjaPath = $null
             }
         }
 
         return @{
             Backend = "vs"
             Generator = $RequestedGenerator
+            NinjaPath = $null
         }
     }
 
@@ -118,6 +134,7 @@ function Resolve-BuildChoice {
             return @{
                 Backend = "ninja"
                 Generator = $ExistingGeneratorName
+                NinjaPath = $null
             }
         }
 
@@ -128,6 +145,7 @@ function Resolve-BuildChoice {
         return @{
             Backend = "vs"
             Generator = $ExistingGeneratorName
+            NinjaPath = $null
         }
     }
 
@@ -135,6 +153,7 @@ function Resolve-BuildChoice {
         return @{
             Backend = "vs"
             Generator = "Visual Studio 17 2022"
+            NinjaPath = $null
         }
     }
 
@@ -154,7 +173,39 @@ function Resolve-BuildChoice {
     return @{
         Backend = "vs"
         Generator = "Visual Studio 17 2022"
+        NinjaPath = $null
     }
+}
+
+function Ensure-WheelSupport {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$PythonPath
+    )
+
+    $hadNativePreference = Test-Path variable:PSNativeCommandUseErrorActionPreference
+    if ($hadNativePreference) {
+        $previousNativePreference = $PSNativeCommandUseErrorActionPreference
+        $PSNativeCommandUseErrorActionPreference = $false
+    }
+
+    try {
+        & $PythonPath "-c" "import wheel.bdist_wheel" 2>$null
+        $wheelAvailable = ($LASTEXITCODE -eq 0)
+    }
+    finally {
+        if ($hadNativePreference) {
+            $PSNativeCommandUseErrorActionPreference = $previousNativePreference
+        }
+    }
+
+    if ($wheelAvailable) {
+        return
+    }
+
+    Write-Host "Installing missing 'wheel' package into the target venv..."
+    Invoke-External -FilePath $PythonPath -Arguments @("-m", "pip", "install", "wheel")
+    Invoke-External -FilePath $PythonPath -Arguments @("-c", "import wheel.bdist_wheel")
 }
 
 $ResolvedVenvDir = Resolve-Path $VenvDir -ErrorAction SilentlyContinue
@@ -169,7 +220,7 @@ if (-not $ResolvedPython.StartsWith($ResolvedVenvDir.Path, [System.StringCompari
 
 New-Item -ItemType Directory -Force -Path $BuildDir, $InstallDir, $WheelhouseDir | Out-Null
 
-& $ResolvedPython $AuditScript --mode strict --target-venv $VenvDir --target-sdk-root $InstallDir
+Invoke-External -FilePath $ResolvedPython -Arguments @($AuditScript, "--mode", "strict", "--target-venv", $VenvDir, "--target-sdk-root", $InstallDir)
 
 $ExistingGenerator = Get-CMakeCacheGenerator -BuildDirPath $BuildDir
 $BuildChoice = Resolve-BuildChoice -RequestedGenerator $Generator -RequestedBackend $BuildBackend -ExistingGeneratorName $ExistingGenerator
@@ -226,25 +277,26 @@ if ($ExistingGenerator) {
     Write-Host "Existing build tree generator: $ExistingGenerator"
 }
 
-& cmake @cmakeArgs
+Invoke-External -FilePath "cmake" -Arguments $cmakeArgs
 
 $buildArgs = @("--build", $BuildDir, "--parallel", $Parallelism)
 if ($ResolvedBackend -eq "vs") {
     $buildArgs += @("--config", "Release")
 }
-& cmake @buildArgs
+Invoke-External -FilePath "cmake" -Arguments $buildArgs
 
 $installArgs = @("--install", $BuildDir)
 if ($ResolvedBackend -eq "vs") {
     $installArgs += @("--config", "Release")
 }
-& cmake @installArgs
+Invoke-External -FilePath "cmake" -Arguments $installArgs
 
 $setupPy = Join-Path $BuildDir "setup.py"
 if (Test-Path $setupPy) {
+    Ensure-WheelSupport -PythonPath $ResolvedPython
     Push-Location $BuildDir
     try {
-        & $ResolvedPython "setup.py" "bdist_wheel" "--dist-dir" $WheelhouseDir
+        Invoke-External -FilePath $ResolvedPython -Arguments @("setup.py", "bdist_wheel", "--dist-dir", $WheelhouseDir)
     }
     finally {
         Pop-Location

@@ -46,6 +46,7 @@ packages/*/*.egg-info/
 # Test outputs
 .pytest_cache/
 .ruff_cache/
+.tmp/
 
 
 # OS

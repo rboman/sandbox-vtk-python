@@ -1,5 +1,4 @@
 # Phase-1 Windows baseline.
-# Keep the VTK pin exact so pip cannot silently upgrade or replace the runtime.
-vtk==9.3.1
+# The exact vtk version is injected dynamically by sync-venv from the local wheel
+# that was actually built for the target.
 pyvista==0.44.2
-

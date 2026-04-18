@@ -1,6 +1,4 @@
 # Phase-1 Ubuntu 24.04 baseline.
-# The PyVista pin is intentionally explicit and must be revalidated whenever the
-# local vtk wheel recipe or supported Python versions change.
-vtk==9.3.1
+# The exact vtk version is injected dynamically by sync-venv from the local wheel
+# that was actually built for the target. The PyVista pin remains explicit.
 pyvista==0.44.2
-

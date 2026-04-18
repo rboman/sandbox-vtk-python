@@ -14,6 +14,16 @@ wheelhouse_dir="${repo_root}/external/wheelhouse/vtk-9.3.1/${target}"
 audit_script="${repo_root}/scripts/validate/audit-environment.py"
 manifest_path="${build_dir}/build-manifest.json"
 
+ensure_wheel_support() {
+  if "${resolved_python}" -c "import wheel.bdist_wheel" >/dev/null 2>&1; then
+    return
+  fi
+
+  echo "Installing missing 'wheel' package into the target venv..."
+  "${resolved_python}" -m pip install wheel
+  "${resolved_python}" -c "import wheel.bdist_wheel" >/dev/null
+}
+
 if [[ ! -d "${venv_dir}" ]]; then
   echo "Target venv does not exist yet: ${venv_dir}. Run sync-venv first." >&2
   exit 1
@@ -59,6 +69,7 @@ cmake --build "${build_dir}"
 cmake --install "${build_dir}"
 
 if [[ -f "${build_dir}/setup.py" ]]; then
+  ensure_wheel_support
   (
     cd "${build_dir}"
     "${resolved_python}" setup.py bdist_wheel --dist-dir "${wheelhouse_dir}"

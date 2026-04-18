@@ -21,6 +21,12 @@ Phase-1 examples:
 6. Build a local wheel into `external/wheelhouse/vtk-9.3.1/<target>/`.
 7. Write a manifest describing the exact build inputs.
 
+The repository must not assume that the produced wheel version string is exactly `9.3.1`.
+Current VTK builds may emit a wheel such as `vtk-9.3.1.dev0-...whl`.
+The sync scripts therefore install the actual wheel file first, detect the installed version, and then constrain `pyvista` against that exact local VTK runtime.
+
+On Windows, the sync step also stages the VTK runtime DLLs from the matching SDK build into the target venv so that `import vtk` succeeds without relying on the SDK path.
+
 ### Windows backend selection
 
 On Windows, `scripts/windows/build-vtk.ps1` now behaves as follows:

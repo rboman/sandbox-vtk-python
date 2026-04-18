@@ -38,6 +38,7 @@ def _iter_runtime_candidates(package_dir: Path) -> list[Path]:
     candidates = [
         package_dir,
         site_packages,
+        site_packages / "bin",
         site_packages / "vtk.libs",
         site_packages / "vtkmodules",
         package_dir / ".libs",
