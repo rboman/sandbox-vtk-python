@@ -2,8 +2,11 @@
 param(
     [string]$Target = "win-amd64-msvc2022-py310-release",
     [string]$PythonExe = "",
-    [string]$Generator = "Visual Studio 17 2022",
-    [string]$Architecture = "x64"
+    [string]$Generator = "",
+    [ValidateSet("auto", "ninja", "vs")]
+    [string]$BuildBackend = "auto",
+    [string]$Architecture = "x64",
+    [int]$Parallel = 0
 )
 
 Set-StrictMode -Version Latest
@@ -24,6 +27,136 @@ $WheelhouseDir = Join-Path $RepoRoot "external\wheelhouse\vtk-9.3.1\$Target"
 $AuditScript = Join-Path $RepoRoot "scripts\validate\audit-environment.py"
 $ManifestPath = Join-Path $BuildDir "build-manifest.json"
 
+function Get-CMakeCacheGenerator {
+    param([string]$BuildDirPath)
+
+    $cachePath = Join-Path $BuildDirPath "CMakeCache.txt"
+    if (-not (Test-Path $cachePath)) {
+        return $null
+    }
+
+    $line = Select-String -Path $cachePath -Pattern "^CMAKE_GENERATOR:INTERNAL=(.+)$" | Select-Object -First 1
+    if (-not $line) {
+        return $null
+    }
+
+    return $line.Matches[0].Groups[1].Value
+}
+
+function Resolve-VsDevCmd {
+    if ($env:VS2022INSTALLDIR) {
+        $candidate = Join-Path $env:VS2022INSTALLDIR "Common7\Tools\VsDevCmd.bat"
+        if (Test-Path $candidate) {
+            return $candidate
+        }
+    }
+
+    $programFilesX86 = [Environment]::GetFolderPath("ProgramFilesX86")
+    $vswhere = Join-Path $programFilesX86 "Microsoft Visual Studio\Installer\vswhere.exe"
+    if (-not (Test-Path $vswhere)) {
+        throw "Unable to locate vswhere.exe. Cannot prepare a Ninja MSVC environment."
+    }
+
+    $installPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+    if (-not $installPath) {
+        throw "Unable to locate a Visual Studio installation with C++ tools."
+    }
+
+    $candidate = Join-Path $installPath.Trim() "Common7\Tools\VsDevCmd.bat"
+    if (-not (Test-Path $candidate)) {
+        throw "Unable to locate VsDevCmd.bat under $installPath."
+    }
+
+    return $candidate
+}
+
+function Import-VsDevEnvironment {
+    param(
+        [string]$TargetArchitecture
+    )
+
+    $vsDevCmd = Resolve-VsDevCmd
+    $command = """$vsDevCmd"" -no_logo -arch=$TargetArchitecture -host_arch=$TargetArchitecture >nul && set"
+    $output = & cmd.exe /s /c $command
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to initialize Visual Studio build environment through VsDevCmd.bat."
+    }
+
+    foreach ($line in $output) {
+        if ($line -match "^(.*?)=(.*)$") {
+            [Environment]::SetEnvironmentVariable($matches[1], $matches[2], "Process")
+        }
+    }
+}
+
+function Resolve-BuildChoice {
+    param(
+        [string]$RequestedGenerator,
+        [string]$RequestedBackend,
+        [string]$ExistingGeneratorName
+    )
+
+    if ($RequestedGenerator) {
+        if ($RequestedGenerator -match "^Ninja") {
+            return @{
+                Backend = "ninja"
+                Generator = $RequestedGenerator
+            }
+        }
+
+        return @{
+            Backend = "vs"
+            Generator = $RequestedGenerator
+        }
+    }
+
+    if ($ExistingGeneratorName) {
+        if ($ExistingGeneratorName -match "^Ninja") {
+            if ($RequestedBackend -eq "vs") {
+                throw "Build directory $BuildDir is already configured for $ExistingGeneratorName. Remove it or choose a different target before switching backends."
+            }
+            return @{
+                Backend = "ninja"
+                Generator = $ExistingGeneratorName
+            }
+        }
+
+        if ($RequestedBackend -eq "ninja") {
+            throw "Build directory $BuildDir is already configured for $ExistingGeneratorName. Remove it or choose a different target before switching backends."
+        }
+
+        return @{
+            Backend = "vs"
+            Generator = $ExistingGeneratorName
+        }
+    }
+
+    if ($RequestedBackend -eq "vs") {
+        return @{
+            Backend = "vs"
+            Generator = "Visual Studio 17 2022"
+        }
+    }
+
+    $ninjaCommand = Get-Command ninja -ErrorAction SilentlyContinue
+    if ($RequestedBackend -eq "ninja" -and -not $ninjaCommand) {
+        throw "BuildBackend=ninja was requested but 'ninja' was not found in PATH."
+    }
+
+    if ($ninjaCommand) {
+        return @{
+            Backend = "ninja"
+            Generator = "Ninja"
+            NinjaPath = $ninjaCommand.Source
+        }
+    }
+
+    return @{
+        Backend = "vs"
+        Generator = "Visual Studio 17 2022"
+    }
+}
+
 $ResolvedVenvDir = Resolve-Path $VenvDir -ErrorAction SilentlyContinue
 if (-not $ResolvedVenvDir) {
     throw "Target venv does not exist yet: $VenvDir. Run sync-venv first."
@@ -38,11 +171,31 @@ New-Item -ItemType Directory -Force -Path $BuildDir, $InstallDir, $WheelhouseDir
 
 & $ResolvedPython $AuditScript --mode strict --target-venv $VenvDir --target-sdk-root $InstallDir
 
+$ExistingGenerator = Get-CMakeCacheGenerator -BuildDirPath $BuildDir
+$BuildChoice = Resolve-BuildChoice -RequestedGenerator $Generator -RequestedBackend $BuildBackend -ExistingGeneratorName $ExistingGenerator
+$ResolvedBackend = $BuildChoice.Backend
+$ResolvedGenerator = $BuildChoice.Generator
+$NinjaPath = $BuildChoice.NinjaPath
+
+if ($ResolvedBackend -eq "ninja") {
+    Import-VsDevEnvironment -TargetArchitecture $Architecture
+    $clCommand = Get-Command cl -ErrorAction SilentlyContinue
+    if (-not $clCommand) {
+        throw "Ninja was selected, but 'cl.exe' is still unavailable after VsDevCmd initialization."
+    }
+}
+
+$Parallelism = $Parallel
+if ($Parallelism -le 0) {
+    $Parallelism = [Environment]::ProcessorCount
+}
+
+$env:CMAKE_BUILD_PARALLEL_LEVEL = "$Parallelism"
+
 $cmakeArgs = @(
     "-S", $VtkSourceDir,
     "-B", $BuildDir,
-    "-G", $Generator,
-    "-A", $Architecture,
+    "-G", $ResolvedGenerator,
     "-DCMAKE_BUILD_TYPE=Release",
     "-DCMAKE_INSTALL_PREFIX=$InstallDir",
     "-DVTK_WRAP_PYTHON=ON",
@@ -58,9 +211,34 @@ $cmakeArgs = @(
     "-DVTK_MODULE_ENABLE_VTK_RenderingMatplotlib=WANT"
 )
 
+if ($ResolvedBackend -eq "vs") {
+    $cmakeArgs += @("-A", $Architecture)
+}
+
+if ($ResolvedBackend -eq "ninja" -and $NinjaPath) {
+    $cmakeArgs += "-DCMAKE_MAKE_PROGRAM=$NinjaPath"
+}
+
+Write-Host "Using backend:   $ResolvedBackend"
+Write-Host "Using generator: $ResolvedGenerator"
+Write-Host "Parallel jobs:   $Parallelism"
+if ($ExistingGenerator) {
+    Write-Host "Existing build tree generator: $ExistingGenerator"
+}
+
 & cmake @cmakeArgs
-& cmake --build $BuildDir --config Release
-& cmake --install $BuildDir --config Release
+
+$buildArgs = @("--build", $BuildDir, "--parallel", $Parallelism)
+if ($ResolvedBackend -eq "vs") {
+    $buildArgs += @("--config", "Release")
+}
+& cmake @buildArgs
+
+$installArgs = @("--install", $BuildDir)
+if ($ResolvedBackend -eq "vs") {
+    $installArgs += @("--config", "Release")
+}
+& cmake @installArgs
 
 $setupPy = Join-Path $BuildDir "setup.py"
 if (Test-Path $setupPy) {
@@ -80,8 +258,11 @@ $manifest = [ordered]@{
     build_dir = $BuildDir
     install_dir = $InstallDir
     wheelhouse_dir = $WheelhouseDir
-    generator = $Generator
+    generator = $ResolvedGenerator
+    backend = $ResolvedBackend
     architecture = $Architecture
+    parallel = $Parallelism
+    ninja_path = $NinjaPath
     vtk_version = "9.3.1"
 }
 
