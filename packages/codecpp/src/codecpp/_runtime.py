@@ -62,7 +62,7 @@ def _environment_hints() -> dict[str, str]:
     return hints
 
 
-def describe_runtime() -> dict[str, object]:
+def _collect_runtime_details() -> dict[str, object]:
     package_dir = _vtkmodules_dir()
     candidates = []
     dlls = []
@@ -86,8 +86,35 @@ def describe_runtime() -> dict[str, object]:
     }
 
 
+def describe_runtime(*, verbose: bool = False) -> dict[str, object]:
+    details = _collect_runtime_details()
+    if verbose:
+        details["runtime_candidate_count"] = len(details["runtime_candidates"])
+        details["vtk_dll_count"] = len(details["vtk_dlls"])
+        return details
+
+    runtime_candidates = details["runtime_candidates"]
+    vtk_dlls = details["vtk_dlls"]
+    runtime_bin_dir = next(
+        (path for path in runtime_candidates if Path(path).name.lower() == "bin"),
+        None,
+    )
+
+    return {
+        "python_executable": details["python_executable"],
+        "prefix": details["prefix"],
+        "base_prefix": details["base_prefix"],
+        "inside_virtual_environment": details["inside_virtual_environment"],
+        "vtkmodules_dir": details["vtkmodules_dir"],
+        "runtime_bin_dir": runtime_bin_dir,
+        "runtime_candidate_count": len(runtime_candidates),
+        "vtk_dll_count": len(vtk_dlls),
+        "environment_hints": details["environment_hints"],
+    }
+
+
 def prepare_runtime(*, strict: bool = False) -> dict[str, object]:
-    details = describe_runtime()
+    details = describe_runtime(verbose=True)
 
     if os.name != "nt":
         return details

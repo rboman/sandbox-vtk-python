@@ -22,3 +22,11 @@ def test_describe_runtime_reports_environment_hints(monkeypatch) -> None:
     monkeypatch.setenv("VTK_DIR", "/tmp/global-vtk")
     details = _runtime.describe_runtime()
     assert "VTK_DIR" in details["environment_hints"]
+    assert "vtk_dlls" not in details
+
+
+def test_describe_runtime_verbose_reports_vtk_dlls(monkeypatch) -> None:
+    monkeypatch.setenv("VTK_DIR", "/tmp/global-vtk")
+    details = _runtime.describe_runtime(verbose=True)
+    assert "VTK_DIR" in details["environment_hints"]
+    assert "vtk_dlls" in details

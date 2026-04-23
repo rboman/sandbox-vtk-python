@@ -28,7 +28,7 @@ def extension_loaded() -> bool:
 
 def require_extension():
     if _swig_module is None:
-        details = describe_runtime()
+        details = describe_runtime(verbose=True)
         bootstrap_error = None
         try:
             prepare_runtime(strict=True)
