@@ -9,7 +9,8 @@ It assumes:
 - Python 3.10 available as `C:\Python310\python.exe`
 - `ninja` available in `PATH`
 - Qt runtime available at `C:\local\qt\bin` or discoverable through `QTDIR`/`Qt5_DIR`
-
+- SWIG should be also present
+  
 The goal is to validate, from scratch, that:
 
 - VTK 9.3.1 builds from source
@@ -70,13 +71,7 @@ If you need to replace an existing extracted tree, run:
 .\scripts\windows\fetch-vtk-source.cmd -Force
 ```
 
-If extraction is still very slow and `Antimalware Service Executable` spikes, add Defender exclusions for:
-
-- your fresh clone root
-- `.tmp\`
-- `external\src\`
-
-Keep those exclusions narrow to this sandbox workspace rather than excluding a broad parent directory like all of `D:\dev`.
+FIXME: Download is still **very** slow, we should use "curl" in the future, if found on the system.
 
 ## 3. Enter the sanitized repo shell
 
@@ -111,6 +106,24 @@ What this step does:
 - builds VTK
 - installs the SDK into `external\install\vtk-9.3.1\win-amd64-msvc2022-py310-release\sdk`
 - generates a local wheel into `external\wheelhouse\vtk-9.3.1\win-amd64-msvc2022-py310-release`
+
+FIXME: Problème actuel:
+"""
+/sdk/vtk-9.3.1.data/headers/cmake/VTKPython-targets-release.cmake
+-- Installing: D:/dev/VIBECODING/sandbox-vtk-python/external/install/vtk-9.3.1/win-amd64-msvc2022-py310-release/sdk/vtk-9.3.1.data/share/licenses/VTK/Copyright.txt
+python.exe : Traceback (most recent call last):
+At D:\dev\VIBECODING\sandbox-vtk-python\scripts\windows\build-vtk.ps1:193 char:9
++         & $PythonPath "-c" "import wheel.bdist_wheel" 2>$null
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+"""
+Le package Wheel n'est pas installé dans l'environnement. Et il ne s'installe pas automatiquement.
+
+L'installation manuelle de wheel dans la venv provoque la compilation de 6293 fichiers lorsqu'on relance le script!
+
+FIXME: Problème moins grave: pip n'est pas upgradé dans la venv
+
 
 Expected artifact:
 
