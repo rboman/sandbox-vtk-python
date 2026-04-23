@@ -183,21 +183,7 @@ function Ensure-WheelSupport {
         [string]$PythonPath
     )
 
-    $probeScript = @"
-import sys
-import warnings
-
-try:
-    from setuptools.command.bdist_wheel import bdist_wheel  # noqa: F401
-except Exception:
-    try:
-        warnings.simplefilter("ignore", FutureWarning)
-        import wheel.bdist_wheel  # noqa: F401
-    except Exception:
-        sys.exit(1)
-
-sys.exit(0)
-"@
+    $probeScript = "import warnings; warnings.simplefilter('ignore', FutureWarning); import wheel.bdist_wheel"
 
     try {
         & $PythonPath "-c" $probeScript
