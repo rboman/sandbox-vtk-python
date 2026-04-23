@@ -57,7 +57,11 @@ Use the repo helper:
 
 This wrapper calls PowerShell with `-ExecutionPolicy Bypass`, which avoids failures on machines where direct `.ps1` execution is disabled.
 
-On Windows, the helper now prefers `tar.exe` instead of `Expand-Archive`, because it is usually much faster on large source archives.
+On Windows, the helper now:
+
+- prefers `curl.exe` when available, which is usually much faster than `Invoke-WebRequest` in Windows PowerShell 5.1
+- prefers a `.tar.gz` source archive when `tar.exe` is available, which is typically smaller and faster to extract than `.zip`
+- falls back to PowerShell download plus `Expand-Archive` only when the faster toolchain is unavailable
 
 After that, the repository expects the VTK source tree at:
 
@@ -71,7 +75,11 @@ If you need to replace an existing extracted tree, run:
 .\scripts\windows\fetch-vtk-source.cmd -Force
 ```
 
-FIXME: Download is still **very** slow, we should use "curl" in the future, if found on the system.
+If download speed is still abnormally low after this change, the usual causes are:
+
+- Windows Defender or another antivirus scanning the partially-downloaded archive
+- HTTPS inspection or a corporate proxy
+- throttling on the upstream host for your route at that moment
 
 ## 3. Enter the sanitized repo shell
 

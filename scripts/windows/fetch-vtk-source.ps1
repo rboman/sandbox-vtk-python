@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$Version = "9.3.1",
-    [string]$Url = "https://gitlab.kitware.com/vtk/vtk/-/archive/v9.3.1/vtk-v9.3.1.zip?ref_type=tags",
+    [string]$Url = "",
     [switch]$Force
 )
 
@@ -14,7 +14,6 @@ $RepoRoot = Resolve-Path (Join-Path $ScriptDir "..\..")
 $ExternalSrcDir = Join-Path $RepoRoot "external\src"
 $TargetDir = Join-Path $ExternalSrcDir "vtk-$Version"
 $TempRoot = Join-Path $RepoRoot ".tmp\downloads"
-$ZipPath = Join-Path $TempRoot "vtk-v$Version.zip"
 $ExtractRoot = Join-Path $TempRoot "extract-vtk-$Version"
 
 function Invoke-External {
@@ -46,6 +45,74 @@ function Get-ArchiveExtractor {
     }
 }
 
+function Get-Downloader {
+    $curlCommand = Get-Command curl.exe -ErrorAction SilentlyContinue
+    if ($curlCommand) {
+        return @{
+            Name = "curl.exe"
+            FilePath = $curlCommand.Source
+        }
+    }
+
+    return @{
+        Name = "Invoke-WebRequest"
+        FilePath = $null
+    }
+}
+
+function Get-ArchivePlan {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$VtkVersion,
+        [string]$ExplicitUrl = ""
+    )
+
+    $extractor = Get-ArchiveExtractor
+    $preferredExtension = if ($extractor.Name -eq "tar.exe") { "tar.gz" } else { "zip" }
+    $downloadUrl = $ExplicitUrl
+    if (-not $downloadUrl) {
+        $downloadUrl = "https://gitlab.kitware.com/vtk/vtk/-/archive/v$VtkVersion/vtk-v$VtkVersion.$preferredExtension" +
+            "?ref_type=tags"
+    }
+
+    $archiveFileName = [System.IO.Path]::GetFileName(([System.Uri]$downloadUrl).AbsolutePath)
+    if (-not $archiveFileName) {
+        $archiveFileName = "vtk-v$VtkVersion.$preferredExtension"
+    }
+
+    return @{
+        Url = $downloadUrl
+        ArchivePath = Join-Path $TempRoot $archiveFileName
+        Extractor = $extractor
+    }
+}
+
+function Download-FileFast {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SourceUrl,
+        [Parameter(Mandatory = $true)]
+        [string]$DestinationPath
+    )
+
+    $downloader = Get-Downloader
+    if ($downloader.Name -eq "curl.exe") {
+        Write-Host "Downloading with curl.exe..."
+        Invoke-External -FilePath $downloader.FilePath -Arguments @(
+            "--fail",
+            "--location",
+            "--retry", "5",
+            "--retry-delay", "2",
+            "--output", $DestinationPath,
+            $SourceUrl
+        )
+        return
+    }
+
+    Write-Host "Downloading with Invoke-WebRequest..."
+    Invoke-WebRequest -Uri $SourceUrl -OutFile $DestinationPath
+}
+
 function Expand-ArchiveFast {
     param(
         [Parameter(Mandatory = $true)]
@@ -72,8 +139,12 @@ if ((Test-Path $TargetDir) -and -not $Force) {
 
 New-Item -ItemType Directory -Force -Path $ExternalSrcDir, $TempRoot | Out-Null
 
-if (Test-Path $ZipPath) {
-    Remove-Item -LiteralPath $ZipPath -Force
+$ArchivePlan = Get-ArchivePlan -VtkVersion $Version -ExplicitUrl $Url
+$ArchivePath = $ArchivePlan.ArchivePath
+$DownloadUrl = $ArchivePlan.Url
+
+if (Test-Path $ArchivePath) {
+    Remove-Item -LiteralPath $ArchivePath -Force
 }
 
 if (Test-Path $ExtractRoot) {
@@ -81,9 +152,10 @@ if (Test-Path $ExtractRoot) {
 }
 
 Write-Host "Downloading VTK $Version source archive..."
-Invoke-WebRequest -Uri $Url -OutFile $ZipPath
+Write-Host "URL: $DownloadUrl"
+Download-FileFast -SourceUrl $DownloadUrl -DestinationPath $ArchivePath
 
-Expand-ArchiveFast -ArchivePath $ZipPath -DestinationPath $ExtractRoot
+Expand-ArchiveFast -ArchivePath $ArchivePath -DestinationPath $ExtractRoot
 
 $ExtractedDir = Get-ChildItem -LiteralPath $ExtractRoot -Directory | Select-Object -First 1
 if (-not $ExtractedDir) {
@@ -97,4 +169,4 @@ if (Test-Path $TargetDir) {
 Move-Item -LiteralPath $ExtractedDir.FullName -Destination $TargetDir
 
 Write-Host "VTK source is ready at $TargetDir"
-Write-Host "Tip: if Windows Defender slows extraction badly, exclude this repo's .tmp and external/src directories from real-time scanning."
+Write-Host "Tip: if download or extraction still feels capped, Windows Defender or HTTPS inspection may be throttling access to .tmp/downloads and external/src."
