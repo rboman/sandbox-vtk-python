@@ -151,12 +151,28 @@ function Write-VtkBuildPaths {
     Write-Host "Wrote VTK build-path hints to $buildPathsFile"
 }
 
+function Get-VtkAbiSuffix {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$VtkVersion
+    )
+
+    $match = [regex]::Match($VtkVersion, '^(?<major>\d+)\.(?<minor>\d+)')
+    if (-not $match.Success) {
+        throw "Unable to derive the VTK ABI suffix from version '$VtkVersion'."
+    }
+
+    return "$($match.Groups['major'].Value).$($match.Groups['minor'].Value)"
+}
+
 function Stage-VtkRuntimeWindows {
     param(
         [Parameter(Mandatory = $true)]
         [string]$PythonPath,
         [Parameter(Mandatory = $true)]
-        [string]$SdkRootPath
+        [string]$SdkRootPath,
+        [Parameter(Mandatory = $true)]
+        [string]$VtkVersion
     )
 
     if ($env:OS -ne "Windows_NT") {
@@ -182,10 +198,26 @@ function Stage-VtkRuntimeWindows {
         Copy-Item -Path $dll.FullName -Destination (Join-Path $runtimeBinDir $dll.Name) -Force
     }
 
+    $abiSuffix = Get-VtkAbiSuffix -VtkVersion $VtkVersion
+    $aliasCount = 0
+    foreach ($dll in $dlls) {
+        if ($dll.BaseName -match '-\d+\.\d+$') {
+            continue
+        }
+
+        $versionedName = "$($dll.BaseName)-$abiSuffix$($dll.Extension)"
+        $versionedPath = Join-Path $runtimeBinDir $versionedName
+        if (-not (Test-Path $versionedPath)) {
+            Copy-Item -Path (Join-Path $runtimeBinDir $dll.Name) -Destination $versionedPath -Force
+            $aliasCount += 1
+        }
+    }
+
     $qtBinDir = Find-QtBinDir
     Write-VtkBuildPaths -VtkModulesDir $vtkModulesDir -AdditionalPaths @($qtBinDir)
 
     Write-Host "Staged $($dlls.Count) VTK runtime DLLs into $runtimeBinDir"
+    Write-Host "Created $aliasCount versioned VTK DLL aliases with ABI suffix $abiSuffix"
     if ($qtBinDir) {
         Write-Host "Detected Qt runtime at $qtBinDir"
     }
@@ -201,9 +233,9 @@ if (-not (Test-Path $VenvPython)) {
 Invoke-External -FilePath $VenvPython -Arguments @($AuditScript, "--mode", "strict", "--target-venv", $VenvDir)
 $vtkWheel = Get-VtkWheel -WheelhousePath $WheelhouseDir
 Invoke-External -FilePath $VenvPython -Arguments @("-m", "pip", "install", "--no-deps", "--force-reinstall", $vtkWheel)
-Stage-VtkRuntimeWindows -PythonPath $VenvPython -SdkRootPath $SdkRoot
 
 $installedVtkVersion = Get-InstalledVtkVersion -PythonPath $VenvPython
+Stage-VtkRuntimeWindows -PythonPath $VenvPython -SdkRootPath $SdkRoot -VtkVersion $installedVtkVersion
 New-Item -ItemType Directory -Force -Path $TempDir | Out-Null
 $VtkConstraintFile = Join-Path $TempDir "vtk-constraint-$Target.txt"
 Set-Content -Path $VtkConstraintFile -Value "vtk===$installedVtkVersion" -Encoding UTF8

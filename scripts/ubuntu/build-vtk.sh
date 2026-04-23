@@ -15,13 +15,16 @@ audit_script="${repo_root}/scripts/validate/audit-environment.py"
 manifest_path="${build_dir}/build-manifest.json"
 
 ensure_wheel_support() {
-  if "${resolved_python}" -c "import wheel.bdist_wheel" >/dev/null 2>&1; then
+  local probe_script
+  probe_script=$'import sys\nimport warnings\n\ntry:\n    from setuptools.command.bdist_wheel import bdist_wheel  # noqa: F401\nexcept Exception:\n    try:\n        warnings.simplefilter("ignore", FutureWarning)\n        import wheel.bdist_wheel  # noqa: F401\n    except Exception:\n        sys.exit(1)\n\nsys.exit(0)\n'
+
+  if "${resolved_python}" -c "${probe_script}" >/dev/null 2>&1; then
     return
   fi
 
   echo "Installing missing 'wheel' package into the target venv..."
   "${resolved_python}" -m pip install wheel
-  "${resolved_python}" -c "import wheel.bdist_wheel" >/dev/null
+  "${resolved_python}" -c "${probe_script}" >/dev/null
 }
 
 if [[ ! -d "${venv_dir}" ]]; then

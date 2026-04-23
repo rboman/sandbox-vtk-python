@@ -183,20 +183,28 @@ function Ensure-WheelSupport {
         [string]$PythonPath
     )
 
-    $hadNativePreference = Test-Path variable:PSNativeCommandUseErrorActionPreference
-    if ($hadNativePreference) {
-        $previousNativePreference = $PSNativeCommandUseErrorActionPreference
-        $PSNativeCommandUseErrorActionPreference = $false
-    }
+    $probeScript = @"
+import sys
+import warnings
+
+try:
+    from setuptools.command.bdist_wheel import bdist_wheel  # noqa: F401
+except Exception:
+    try:
+        warnings.simplefilter("ignore", FutureWarning)
+        import wheel.bdist_wheel  # noqa: F401
+    except Exception:
+        sys.exit(1)
+
+sys.exit(0)
+"@
 
     try {
-        & $PythonPath "-c" "import wheel.bdist_wheel" 2>$null
+        & $PythonPath "-c" $probeScript
         $wheelAvailable = ($LASTEXITCODE -eq 0)
     }
-    finally {
-        if ($hadNativePreference) {
-            $PSNativeCommandUseErrorActionPreference = $previousNativePreference
-        }
+    catch {
+        $wheelAvailable = $false
     }
 
     if ($wheelAvailable) {
@@ -205,7 +213,7 @@ function Ensure-WheelSupport {
 
     Write-Host "Installing missing 'wheel' package into the target venv..."
     Invoke-External -FilePath $PythonPath -Arguments @("-m", "pip", "install", "wheel")
-    Invoke-External -FilePath $PythonPath -Arguments @("-c", "import wheel.bdist_wheel")
+    Invoke-External -FilePath $PythonPath -Arguments @("-c", $probeScript)
 }
 
 $ResolvedVenvDir = Resolve-Path $VenvDir -ErrorAction SilentlyContinue

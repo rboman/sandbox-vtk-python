@@ -10,7 +10,7 @@ It assumes:
 - `ninja` available in `PATH`
 - Qt runtime available at `C:\local\qt\bin` or discoverable through `QTDIR`/`Qt5_DIR`
 - SWIG should be also present
-  
+
 The goal is to validate, from scratch, that:
 
 - VTK 9.3.1 builds from source
@@ -107,23 +107,11 @@ What this step does:
 - installs the SDK into `external\install\vtk-9.3.1\win-amd64-msvc2022-py310-release\sdk`
 - generates a local wheel into `external\wheelhouse\vtk-9.3.1\win-amd64-msvc2022-py310-release`
 
-FIXME: Problème actuel:
-"""
-/sdk/vtk-9.3.1.data/headers/cmake/VTKPython-targets-release.cmake
--- Installing: D:/dev/VIBECODING/sandbox-vtk-python/external/install/vtk-9.3.1/win-amd64-msvc2022-py310-release/sdk/vtk-9.3.1.data/share/licenses/VTK/Copyright.txt
-python.exe : Traceback (most recent call last):
-At D:\dev\VIBECODING\sandbox-vtk-python\scripts\windows\build-vtk.ps1:193 char:9
-+         & $PythonPath "-c" "import wheel.bdist_wheel" 2>$null
-+         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandError
-"""
-Le package Wheel n'est pas installé dans l'environnement. Et il ne s'installe pas automatiquement.
+Note:
 
-L'installation manuelle de wheel dans la venv provoque la compilation de 6293 fichiers lorsqu'on relance le script!
-
-FIXME: Problème moins grave: pip n'est pas upgradé dans la venv
-
+- the script prefers `setuptools.command.bdist_wheel` and only falls back to `wheel.bdist_wheel` with its deprecation warning suppressed
+- if neither `setuptools` nor `wheel` provides `bdist_wheel`, the script installs `wheel` into the target venv automatically
+- you should not need to install `wheel` manually before running this step
 
 Expected artifact:
 
