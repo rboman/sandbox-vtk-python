@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import typer
 
+from pmanager.build import BuildPlanError, make_vtk_build_plan, print_vtk_build_plan
 from pmanager.fetch import FetchError, fetch_vtk as fetch_vtk_source
 from pmanager.libraries import get_library
 from pmanager.targets import iter_targets
@@ -40,12 +41,33 @@ def fetch_vtk(
 
 
 @build_app.command("vtk")
-def build_vtk() -> None:
-    library = get_library("vtk")
-    typer.echo(
-        f"Build recipe is registered for {library.name} {library.version}, "
-        "but Python build execution is not implemented in this tranche."
-    )
+def build_vtk(
+    target: str = typer.Option("win-amd64-msvc2022-py310-release", help="Build target."),
+    python_exe: str = typer.Option("", help="Python executable for VTK wrapping/wheel."),
+    backend: str = typer.Option("auto", help="Build backend: auto, ninja, or vs."),
+    generator: str = typer.Option("", help="Explicit CMake generator."),
+    architecture: str = typer.Option("x64", help="Windows Visual Studio architecture."),
+    parallel: int = typer.Option(0, help="Parallel build jobs. 0 means CPU count."),
+    execute: bool = typer.Option(False, "--execute", help="Actually run the build. Not implemented yet."),
+) -> None:
+    try:
+        plan = make_vtk_build_plan(
+            target_name=target,
+            python_exe=python_exe or None,
+            requested_backend=backend,
+            requested_generator=generator or None,
+            architecture=architecture,
+            parallel=parallel,
+        )
+    except (BuildPlanError, ValueError) as exc:
+        typer.echo(f"build vtk failed: {exc}", err=True)
+        raise typer.Exit(1) from exc
+
+    print_vtk_build_plan(plan)
+    if execute:
+        typer.echo()
+        typer.echo("Executing the VTK build is not implemented in this tranche.", err=True)
+        raise typer.Exit(2)
 
 
 @validate_app.command("audit")
