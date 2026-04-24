@@ -129,10 +129,25 @@ bootstrap refuses to remove the active venv.
 
 ## 3. Enter or use the pmanager development venv
 
-For interactive development, activate it:
+For normal interactive development, activate it:
 
 ```bat
 .venvs\pmanager-dev\Scripts\activate.bat
+```
+
+The rest of this document assumes this venv is active. That keeps the commands
+short and matches the intended day-to-day workflow.
+
+If you do not want to activate the venv, replace commands such as:
+
+```bat
+pmanager targets
+```
+
+with:
+
+```bat
+.venvs\pmanager-dev\Scripts\python.exe -m pmanager targets
 ```
 
 After activation:
@@ -147,33 +162,10 @@ Expected result: the printed executable should be under:
 .venvs\pmanager-dev\Scripts\python.exe
 ```
 
-You can also avoid activation and call the venv tools explicitly:
-
-```bat
-.venvs\pmanager-dev\Scripts\python.exe -m pip --version
-.venvs\pmanager-dev\Scripts\python.exe -m pmanager targets
-```
-
-Depending on how the editable install was created, the venv may expose either a
-normal `pmanager` launcher or the explicit module form. The module form is the
-most reliable way to test this slice:
-
-```bat
-.venvs\pmanager-dev\Scripts\python.exe -m pmanager targets
-```
-
 ## 4. Check `pmanager targets`
-
-From the activated venv:
 
 ```bat
 pmanager targets
-```
-
-Or without activation:
-
-```bat
-.venvs\pmanager-dev\Scripts\python.exe -m pmanager targets
 ```
 
 Expected output:
@@ -198,13 +190,6 @@ pmanager fetch vtk --help
 pmanager build vtk --help
 ```
 
-Equivalent explicit calls:
-
-```bat
-.venvs\pmanager-dev\Scripts\python.exe -m pmanager fetch vtk --help
-.venvs\pmanager-dev\Scripts\python.exe -m pmanager build vtk --help
-```
-
 Expected result:
 
 - both commands show Typer help;
@@ -214,7 +199,7 @@ Expected result:
 Print the Windows build plan without compiling:
 
 ```bat
-.venvs\pmanager-dev\Scripts\python.exe -m pmanager build vtk --target win-amd64-msvc2022-py310-release --backend vs
+pmanager build vtk --target win-amd64-msvc2022-py310-release --backend vs
 ```
 
 Expected output includes:
@@ -235,7 +220,7 @@ The unit tests create tiny local archives and verify safe extraction, checksum
 handling, and the CLI path:
 
 ```bat
-.venvs\pmanager-dev\Scripts\python.exe -m pytest -q tests\test_pmanager_fetch.py
+python -m pytest -q tests\test_pmanager_fetch.py
 ```
 
 Expected result:
@@ -252,7 +237,7 @@ The unit tests verify CMake argument construction, target paths, generator
 detection, and refusal to switch generators in an existing build tree:
 
 ```bat
-.venvs\pmanager-dev\Scripts\python.exe -m pytest -q tests\test_pmanager_build.py
+python -m pytest -q tests\test_pmanager_build.py
 ```
 
 Expected result:
@@ -274,13 +259,13 @@ external\src\vtk-9.3.1
 If that directory already exists, the command refuses to replace it:
 
 ```bat
-.venvs\pmanager-dev\Scripts\python.exe -m pmanager fetch vtk
+pmanager fetch vtk
 ```
 
 To deliberately replace the source tree:
 
 ```bat
-.venvs\pmanager-dev\Scripts\python.exe -m pmanager fetch vtk --force
+pmanager fetch vtk --force
 ```
 
 The Python fetch implementation:
@@ -301,16 +286,16 @@ in importable modules under `pmanager.validation`.
 Check the new command group:
 
 ```bat
-.venvs\pmanager-dev\Scripts\python.exe -m pmanager validate --help
-.venvs\pmanager-dev\Scripts\python.exe -m pmanager validate audit --help
-.venvs\pmanager-dev\Scripts\python.exe -m pmanager validate provenance --help
-.venvs\pmanager-dev\Scripts\python.exe -m pmanager validate import-order --help
+pmanager validate --help
+pmanager validate audit --help
+pmanager validate provenance --help
+pmanager validate import-order --help
 ```
 
 Run a lightweight audit from the tooling venv:
 
 ```bat
-.venvs\pmanager-dev\Scripts\python.exe -m pmanager validate audit --mode audit
+pmanager validate audit --mode audit
 ```
 
 This command is diagnostic. It may report environment hints depending on your
@@ -321,7 +306,7 @@ it should still run without needing a VTK build.
 The legacy script path should also still work:
 
 ```bat
-.venvs\pmanager-dev\Scripts\python.exe scripts\validate\audit-environment.py --mode audit
+python scripts\validate\audit-environment.py --mode audit
 ```
 
 ## 10. Run the unit tests
