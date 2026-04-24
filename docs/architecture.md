@@ -1,5 +1,16 @@
 # Architecture
 
+## Project setting
+
+The repository is a practical sandbox for numerical simulation work in a
+university laboratory.
+
+The design should be explicit enough to avoid runtime/build confusion, but not
+so abstract that it becomes hard for a small research group to maintain. The
+first concrete external library is VTK. Future external libraries should be
+possible, but the implementation should not invent a plugin framework before it
+is needed.
+
 ## Goal
 
 The repository proves that one custom VTK build can support two distinct but coherent views:
@@ -52,8 +63,11 @@ This venv-installed wheel is the only supported source for:
 
 ### `packages/pmanager`
 
-- Future Typer-based orchestrator.
-- Phase 1 only requires a CLI skeleton and stable command surface for later automation.
+- Python-first orchestration helper for day-to-day development.
+- It should eventually own fetch/build/sync/validation logic that currently
+  lives in PowerShell/Bash scripts.
+- It should remain small and concrete while VTK is the only real external
+  library recipe.
 
 ## Non-negotiable constraints
 
@@ -61,3 +75,9 @@ This venv-installed wheel is the only supported source for:
 - Scripts must construct the environment they need.
 - A successful import must remain successful after removing hidden global path injections.
 - SDK and runtime trees must be independently inspectable.
+
+## Simplicity constraint
+
+The repository should not accumulate large workarounds for hypothetical users.
+If a workaround would make the workflow significantly harder to understand, it
+should be discussed first and justified by a real laboratory use case.

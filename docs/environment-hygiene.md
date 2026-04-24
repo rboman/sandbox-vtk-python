@@ -2,7 +2,9 @@
 
 ## Why this matters
 
-This repository is designed for machines that may already expose unmanaged SDKs and Python packages globally.
+This repository is designed for numerical simulation work on research
+workstations. Those machines may already expose unmanaged SDKs and Python
+packages globally.
 
 On the current Windows machine used for development, there are already examples of:
 
@@ -10,7 +12,11 @@ On the current Windows machine used for development, there are already examples 
 - pre-existing `vtk==9.3.1` outside any project venv
 - injected `sys.path` entries unrelated to this repository
 
-That is exactly why the repo must audit and sanitize aggressively.
+That is why the repo must audit and sanitize the parts of the environment that
+can silently change build or runtime behavior.
+
+The goal is not to build a heavyweight isolation framework. The goal is to make
+daily lab development reproducible enough that a successful run means something.
 
 ## Variables treated as unsafe by default
 
@@ -53,6 +59,8 @@ That is exactly why the repo must audit and sanitize aggressively.
 - Audit scripts can run in `audit` mode or `strict` mode.
 - `strict` mode must fail on suspicious global injections.
 - `PYTHONNOUSERSITE=1` is forced during repo-managed validation.
+- Prefer simple, explicit checks over broad compatibility machinery.
+- Assume normal network access for installing basic Python development tools.
 
 ## Practical guidance
 

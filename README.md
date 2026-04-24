@@ -2,6 +2,25 @@
 
 Cross-platform sandbox for a mixed C++ / Python project using a custom-built VTK 9.3.1.
 
+## Project context
+
+This repository is intended for day-to-day numerical simulation work in a university
+laboratory setting.
+
+The target audience is small: one main developer, possibly a student or a close
+collaborator. The tooling should therefore stay practical and understandable.
+It is not meant to become an enterprise build platform with many layers of
+fallbacks and policy machinery.
+
+The preferred direction is:
+
+- keep the architecture explicit;
+- keep the workflow easy to test step by step;
+- assume normal development conveniences such as network access for installing
+  basic Python tooling;
+- ask before adding large compatibility workarounds;
+- favor clear Python code over duplicated PowerShell/Bash logic.
+
 The repository exists to prove one architectural point first:
 
 - `codecpp` can compile against a custom VTK SDK
@@ -15,6 +34,8 @@ The repository exists to prove one architectural point first:
 - The user's shell is treated as untrusted until proven otherwise.
 - Python runtime VTK comes from the venv wheel, not from the SDK install tree.
 - Scripts must detect environment pollution instead of silently benefiting from it.
+- Simplicity matters: environment hygiene should protect the numerical workflow,
+  not turn the repository into a complex infrastructure project.
 
 ## Repository layout
 
@@ -101,6 +122,9 @@ The repository now contains:
 - a `codecpp` package skeleton using CMake + SWIG + scikit-build-core
 - a `codepy` package skeleton using PyVista
 - a `pmanager` Typer CLI skeleton
+
+The intended `pmanager` direction is Python-first. PowerShell and Bash should
+eventually remain only for shell-specific entry points and convenience wrappers.
 
 ## Current validation status
 

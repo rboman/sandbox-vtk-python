@@ -2,6 +2,34 @@
 
 This document explains how to test the current Python-first orchestration slice.
 
+## Development philosophy
+
+This project is for numerical simulation work in a university laboratory. The
+workflow should help one main developer, students, or close collaborators work
+comfortably on Windows and Linux.
+
+The goal is not to create a large general-purpose build platform. Prefer simple
+Python tooling, clear commands, and step-by-step validation. Assume network
+access is available for installing ordinary Python development dependencies.
+
+Going forward, `pmanager` should live in a small tooling environment, for
+example:
+
+```text
+.venvs/pmanager-dev/
+```
+
+and should manage target environments such as:
+
+```text
+.venvs/win-amd64-msvc2022-py310-release/
+.venvs/linux-x86_64-gcc-py312-release/
+```
+
+The current slice was started before this simplification was fully clarified,
+so it still bootstraps against the Windows target venv. Treat that as a
+transitional state, not as the long-term model.
+
 It is intentionally narrower than `docs/windows-from-scratch.md`: it does **not**
 build VTK yet, does **not** replace the PowerShell/Bash build scripts, and does
 **not** migrate `sync-venv`.
@@ -54,6 +82,9 @@ modify the existing build/sync/fetch scripts.
 
 ## 2. Bootstrap the target development venv
 
+Note: this is the current transitional command. The next simplification should
+move `pmanager` development to `.venvs/pmanager-dev`.
+
 Run:
 
 ```powershell
@@ -103,7 +134,15 @@ You can also avoid activation and call the venv tools explicitly:
 
 ```powershell
 .\.venvs\win-amd64-msvc2022-py310-release\Scripts\python.exe -m pip --version
-.\.venvs\win-amd64-msvc2022-py310-release\Scripts\pmanager.exe targets
+.\.venvs\win-amd64-msvc2022-py310-release\Scripts\python.exe -m pmanager targets
+```
+
+Depending on how the editable install was created, the venv may expose either a
+normal `pmanager` launcher or the explicit module form. The module form is the
+most reliable way to test this slice:
+
+```powershell
+.\.venvs\win-amd64-msvc2022-py310-release\Scripts\python.exe -m pmanager targets
 ```
 
 ## 4. Check `pmanager targets`
@@ -117,7 +156,7 @@ pmanager targets
 Or without activation:
 
 ```powershell
-.\.venvs\win-amd64-msvc2022-py310-release\Scripts\pmanager.exe targets
+.\.venvs\win-amd64-msvc2022-py310-release\Scripts\python.exe -m pmanager targets
 ```
 
 Expected output:
@@ -144,8 +183,8 @@ pmanager build vtk --help
 Equivalent explicit calls:
 
 ```powershell
-.\.venvs\win-amd64-msvc2022-py310-release\Scripts\pmanager.exe fetch vtk --help
-.\.venvs\win-amd64-msvc2022-py310-release\Scripts\pmanager.exe build vtk --help
+.\.venvs\win-amd64-msvc2022-py310-release\Scripts\python.exe -m pmanager fetch vtk --help
+.\.venvs\win-amd64-msvc2022-py310-release\Scripts\python.exe -m pmanager build vtk --help
 ```
 
 Expected result:
@@ -179,7 +218,7 @@ python -m pytest -q
 Expected result for this slice:
 
 ```text
-19 passed
+20 passed
 ```
 
 These tests do not require a VTK build. They cover:
@@ -202,7 +241,7 @@ python -m pytest -q tests\test_bootstrap_dev_env.py tests\test_pmanager.py tests
 Expected result:
 
 ```text
-11 passed
+13 passed
 ```
 
 The exact number may increase as the Python orchestration grows.
@@ -230,7 +269,7 @@ For real VTK work, continue using the validated scripts documented in
 
 When working on the next Python-first slice:
 
-1. Bootstrap once:
+1. Bootstrap once with the current transitional command:
 
    ```powershell
    python .\scripts\bootstrap-dev-env.py --target win-amd64-msvc2022-py310-release
@@ -256,8 +295,12 @@ When working on the next Python-first slice:
    python -m pytest -q
    ```
 
-Because `pmanager` is installed editable, CLI changes should be visible from the
-same venv without reinstalling, unless package metadata or entry points change.
+Because `pmanager` is installed editable, code changes should be visible without
+reinstalling in normal development.
+
+The next intended improvement is to replace this target-venv bootstrap with a
+simpler `.venvs/pmanager-dev` bootstrap that installs `pip`, `setuptools`,
+`wheel`, `typer`, and `pytest` explicitly.
 
 ## 10. Rollback for this slice
 
