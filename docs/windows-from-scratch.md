@@ -2,6 +2,14 @@
 
 This document records the full Windows phase-1 procedure from a fresh clone.
 
+## Shell note
+
+New Windows user-facing instructions should prefer `cmd.exe` syntax. This
+document still contains PowerShell commands because the currently validated
+phase-1 workflow uses existing `.ps1` scripts. As `pmanager` takes over the real
+logic, these steps should be replaced by `cmd.exe` + Python commands or thin
+`.cmd` wrappers.
+
 It assumes:
 
 - Windows 11
@@ -33,15 +41,15 @@ That gives the strongest evidence that the workflow is self-contained.
 
 Example:
 
-```powershell
+```bat
 cd D:\dev\VIBECODING
 git clone <your-new-github-repo-url> sandbox-vtk-python-fresh
-cd .\sandbox-vtk-python-fresh
+cd sandbox-vtk-python-fresh
 ```
 
 ## 1. Create the target venv
 
-```powershell
+```bat
 C:\Python310\python.exe -m venv .venvs\win-amd64-msvc2022-py310-release
 ```
 
@@ -51,8 +59,8 @@ You do **not** need to activate the venv globally. All supported commands call t
 
 Use the repo helper:
 
-```powershell
-.\scripts\windows\fetch-vtk-source.cmd
+```bat
+scripts\windows\fetch-vtk-source.cmd
 ```
 
 This wrapper calls PowerShell with `-ExecutionPolicy Bypass`, which avoids failures on machines where direct `.ps1` execution is disabled.
@@ -71,8 +79,8 @@ external\src\vtk-9.3.1\
 
 If you need to replace an existing extracted tree, run:
 
-```powershell
-.\scripts\windows\fetch-vtk-source.cmd -Force
+```bat
+scripts\windows\fetch-vtk-source.cmd -Force
 ```
 
 If download speed is still abnormally low after this change, the usual causes are:

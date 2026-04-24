@@ -19,7 +19,9 @@ The preferred direction is:
 - assume normal development conveniences such as network access for installing
   basic Python tooling;
 - ask before adding large compatibility workarounds;
-- favor clear Python code over duplicated PowerShell/Bash logic.
+- favor clear Python code over duplicated PowerShell/Bash logic;
+- on Windows, prefer `cmd.exe` commands in user-facing documentation and keep
+  PowerShell only as a temporary implementation detail for existing scripts.
 
 The repository exists to prove one architectural point first:
 
@@ -125,6 +127,7 @@ The repository now contains:
 
 The intended `pmanager` direction is Python-first. PowerShell and Bash should
 eventually remain only for shell-specific entry points and convenience wrappers.
+On Windows, new user-facing commands should be shown for `cmd.exe` by default.
 
 ## Current validation status
 

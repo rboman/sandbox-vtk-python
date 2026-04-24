@@ -12,6 +12,11 @@ The goal is not to create a large general-purpose build platform. Prefer simple
 Python tooling, clear commands, and step-by-step validation. Assume network
 access is available for installing ordinary Python development dependencies.
 
+On Windows, this project uses `cmd.exe` examples by default. The project owner
+is more comfortable with Linux-like shells and classic Windows command lines
+than with PowerShell. New documentation should therefore avoid PowerShell syntax
+unless it is documenting an existing transitional script.
+
 Going forward, `pmanager` should live in a small tooling environment, for
 example:
 
@@ -65,15 +70,15 @@ Not implemented yet:
 
 ## 1. Start from the repository root
 
-Windows PowerShell:
+Windows `cmd.exe`:
 
-```powershell
-cd D:\dev\VIBECODING\sandbox-vtk-python
+```bat
+cd /d D:\dev\VIBECODING\sandbox-vtk-python
 ```
 
 Optional sanity check:
 
-```powershell
+```bat
 git status --short
 ```
 
@@ -87,8 +92,8 @@ move `pmanager` development to `.venvs/pmanager-dev`.
 
 Run:
 
-```powershell
-python .\scripts\bootstrap-dev-env.py --target win-amd64-msvc2022-py310-release
+```bat
+python scripts\bootstrap-dev-env.py --target win-amd64-msvc2022-py310-release
 ```
 
 Expected behavior:
@@ -114,13 +119,13 @@ to create it and install `pmanager`.
 
 For interactive development, activate it:
 
-```powershell
-.\.venvs\win-amd64-msvc2022-py310-release\Scripts\Activate.ps1
+```bat
+.venvs\win-amd64-msvc2022-py310-release\Scripts\activate.bat
 ```
 
 After activation:
 
-```powershell
+```bat
 python -c "import sys; print(sys.executable)"
 ```
 
@@ -132,31 +137,31 @@ Expected result: the printed executable should be under:
 
 You can also avoid activation and call the venv tools explicitly:
 
-```powershell
-.\.venvs\win-amd64-msvc2022-py310-release\Scripts\python.exe -m pip --version
-.\.venvs\win-amd64-msvc2022-py310-release\Scripts\python.exe -m pmanager targets
+```bat
+.venvs\win-amd64-msvc2022-py310-release\Scripts\python.exe -m pip --version
+.venvs\win-amd64-msvc2022-py310-release\Scripts\python.exe -m pmanager targets
 ```
 
 Depending on how the editable install was created, the venv may expose either a
 normal `pmanager` launcher or the explicit module form. The module form is the
 most reliable way to test this slice:
 
-```powershell
-.\.venvs\win-amd64-msvc2022-py310-release\Scripts\python.exe -m pmanager targets
+```bat
+.venvs\win-amd64-msvc2022-py310-release\Scripts\python.exe -m pmanager targets
 ```
 
 ## 4. Check `pmanager targets`
 
 From the activated venv:
 
-```powershell
+```bat
 pmanager targets
 ```
 
 Or without activation:
 
-```powershell
-.\.venvs\win-amd64-msvc2022-py310-release\Scripts\python.exe -m pmanager targets
+```bat
+.venvs\win-amd64-msvc2022-py310-release\Scripts\python.exe -m pmanager targets
 ```
 
 Expected output:
@@ -175,16 +180,16 @@ These commands are intentionally placeholders for now.
 
 They must exist:
 
-```powershell
+```bat
 pmanager fetch vtk --help
 pmanager build vtk --help
 ```
 
 Equivalent explicit calls:
 
-```powershell
-.\.venvs\win-amd64-msvc2022-py310-release\Scripts\python.exe -m pmanager fetch vtk --help
-.\.venvs\win-amd64-msvc2022-py310-release\Scripts\python.exe -m pmanager build vtk --help
+```bat
+.venvs\win-amd64-msvc2022-py310-release\Scripts\python.exe -m pmanager fetch vtk --help
+.venvs\win-amd64-msvc2022-py310-release\Scripts\python.exe -m pmanager build vtk --help
 ```
 
 Expected result:
@@ -195,7 +200,7 @@ Expected result:
 
 You can also run the placeholder commands directly:
 
-```powershell
+```bat
 pmanager fetch vtk
 pmanager build vtk
 ```
@@ -211,7 +216,7 @@ Build recipe is registered for vtk 9.3.1, but Python build execution is not impl
 
 From the repository root:
 
-```powershell
+```bat
 python -m pytest -q
 ```
 
@@ -234,7 +239,7 @@ These tests do not require a VTK build. They cover:
 
 Run only the new pmanager-related tests:
 
-```powershell
+```bat
 python -m pytest -q tests\test_bootstrap_dev_env.py tests\test_pmanager.py tests\test_pmanager_environment.py
 ```
 
@@ -250,7 +255,7 @@ The exact number may increase as the Python orchestration grows.
 
 Do not expect these commands to replace existing scripts yet:
 
-```powershell
+```bat
 pmanager fetch vtk
 pmanager build vtk
 pmanager sync venv
@@ -271,27 +276,27 @@ When working on the next Python-first slice:
 
 1. Bootstrap once with the current transitional command:
 
-   ```powershell
-   python .\scripts\bootstrap-dev-env.py --target win-amd64-msvc2022-py310-release
+   ```bat
+   python scripts\bootstrap-dev-env.py --target win-amd64-msvc2022-py310-release
    ```
 
 2. Activate the target venv:
 
-   ```powershell
-   .\.venvs\win-amd64-msvc2022-py310-release\Scripts\Activate.ps1
+   ```bat
+   .venvs\win-amd64-msvc2022-py310-release\Scripts\activate.bat
    ```
 
 3. Edit `packages\pmanager\src\pmanager\...`.
 
 4. Run focused tests:
 
-   ```powershell
+   ```bat
    python -m pytest -q tests\test_pmanager.py tests\test_pmanager_environment.py
    ```
 
 5. Run the full unit suite:
 
-   ```powershell
+   ```bat
    python -m pytest -q
    ```
 

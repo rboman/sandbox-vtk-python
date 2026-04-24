@@ -31,6 +31,9 @@ simple solution when it is good enough for daily laboratory work.
 - Keep VTK as the concrete first recipe; generalize only after a second library
   makes the shared pattern clear.
 - Keep shell scripts as thin as possible once Python replacements are validated.
+- Prefer `cmd.exe` examples for Windows user instructions. PowerShell should not
+  be required for new day-to-day commands unless an existing script still needs
+  it during the transition.
 
 ## Non-goals for phase 1
 

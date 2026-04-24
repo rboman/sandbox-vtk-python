@@ -66,9 +66,13 @@ daily lab development reproducible enough that a successful run means something.
 
 ### Windows
 
-- Start with `scripts/windows/enter-clean-dev-shell.ps1`.
+- Prefer `cmd.exe` for user-facing commands and day-to-day testing.
+- PowerShell is still used by some existing scripts during the transition, but
+  new instructions should avoid requiring PowerShell knowledge.
 - Do not reuse a terminal that has already sourced historical SDK setup scripts.
 - Treat any successful run from a "dirty" shell as untrusted until it also succeeds in a clean repo shell.
+- As the Python-first workflow grows, add thin `.cmd` wrappers before asking the
+  user to run PowerShell directly.
 
 ### Ubuntu
 
