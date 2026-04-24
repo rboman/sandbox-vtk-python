@@ -39,7 +39,8 @@ The current goal is only to validate that:
 - the `pmanager` tooling venv can be created or selected;
 - `pmanager` can be installed editable into that tooling venv;
 - the phase-1 targets are exposed from Python code;
-- the future commands `pmanager fetch vtk` and `pmanager build vtk` exist;
+- `pmanager fetch vtk` can fetch VTK source archives;
+- the future command `pmanager build vtk` exists;
 - the validation scripts are importable through `pmanager.validation`;
 - the new `pmanager validate ...` command group exists;
 - the unit tests pass without requiring a VTK build.
@@ -54,8 +55,10 @@ Implemented in this slice:
 - `pmanager.libraries`
 - `pmanager.environment`
 - `pmanager.validation`
-- preparatory CLI commands:
+- `pmanager.fetch`
+- implemented CLI commands:
   - `pmanager fetch vtk`
+- preparatory CLI commands:
   - `pmanager build vtk`
 - validation CLI commands:
   - `pmanager validate audit`
@@ -64,7 +67,6 @@ Implemented in this slice:
 
 Not implemented yet:
 
-- Python VTK source download
 - Python VTK build orchestration
 - Python venv synchronization
 - Python Windows DLL staging
@@ -184,9 +186,10 @@ linux-x86_64-gcc-py312-release
 This confirms that `pmanager` is reading the phase-1 targets from
 `pmanager.targets`, not from hardcoded strings in the CLI command body.
 
-## 5. Check the future VTK commands
+## 5. Check the VTK fetch/build commands
 
-These commands are intentionally placeholders for now.
+`pmanager fetch vtk` is implemented in Python. `pmanager build vtk` is still a
+placeholder for now.
 
 They must exist:
 
@@ -205,26 +208,70 @@ Equivalent explicit calls:
 Expected result:
 
 - both commands show Typer help;
-- neither command downloads or builds anything;
-- existing scripts remain the official implementation for real VTK work.
+- `fetch vtk` has `--url`, `--sha256`, and `--force` options;
+- `build vtk` still does not build anything.
 
-You can also run the placeholder commands directly:
+Do not run the real fetch command if you want to keep an existing source tree
+untouched:
 
 ```bat
-pmanager fetch vtk
 pmanager build vtk
 ```
 
 Expected messages:
 
 ```text
-Fetch recipe is registered for vtk 9.3.1, but Python fetch execution is not implemented in this tranche.
 Build recipe is registered for vtk 9.3.1, but Python build execution is not implemented in this tranche.
 ```
 
-## 6. Run the unit tests
+## 6. Test VTK fetch logic without downloading VTK
 
-## 6. Check the validation commands
+The unit tests create tiny local archives and verify safe extraction, checksum
+handling, and the CLI path:
+
+```bat
+.venvs\pmanager-dev\Scripts\python.exe -m pytest -q tests\test_pmanager_fetch.py
+```
+
+Expected result:
+
+```text
+7 passed
+```
+
+These tests do not require network access and do not touch `external\src`.
+
+## 7. Optional: fetch the real VTK source archive
+
+This downloads and extracts VTK 9.3.1 into:
+
+```text
+external\src\vtk-9.3.1
+```
+
+If that directory already exists, the command refuses to replace it:
+
+```bat
+.venvs\pmanager-dev\Scripts\python.exe -m pmanager fetch vtk
+```
+
+To deliberately replace the source tree:
+
+```bat
+.venvs\pmanager-dev\Scripts\python.exe -m pmanager fetch vtk --force
+```
+
+The Python fetch implementation:
+
+- downloads with the standard library;
+- prints a few progress messages so the user knows the command is still working;
+- accepts an optional `--sha256`;
+- extracts `.tar`, `.tar.gz`, `.tgz`, or `.zip`;
+- rejects archive entries with absolute paths or `..`;
+- rejects symlinks/hardlinks in tar archives;
+- moves the extracted source tree into place only after extraction succeeds.
+
+## 8. Check the validation commands
 
 The old scripts under `scripts\validate\` still exist, but their logic now lives
 in importable modules under `pmanager.validation`.
@@ -255,7 +302,7 @@ The legacy script path should also still work:
 .venvs\pmanager-dev\Scripts\python.exe scripts\validate\audit-environment.py --mode audit
 ```
 
-## 7. Run the unit tests
+## 9. Run the unit tests
 
 From the repository root:
 
@@ -273,7 +320,7 @@ python scripts\bootstrap-dev-env.py
 Expected result for this slice:
 
 ```text
-28 passed
+35 passed
 ```
 
 These tests do not require a VTK build. They cover:
@@ -286,43 +333,43 @@ These tests do not require a VTK build. They cover:
 - CLI availability for `fetch vtk` and `build vtk`.
 - importable validation modules;
 - CLI availability for `pmanager validate ...`.
+- VTK fetch planning, checksum, safe extraction, and local-archive CLI behavior.
 
-## 8. Optional targeted tests
+## 10. Optional targeted tests
 
 Run only the new pmanager-related tests:
 
 ```bat
-python -m pytest -q tests\test_bootstrap_dev_env.py tests\test_pmanager.py tests\test_pmanager_environment.py tests\test_pmanager_validation_modules.py
+python -m pytest -q tests\test_bootstrap_dev_env.py tests\test_pmanager.py tests\test_pmanager_environment.py tests\test_pmanager_validation_modules.py tests\test_pmanager_fetch.py
 ```
 
 Expected result:
 
 ```text
-21 passed
+28 passed
 ```
 
 The exact number may increase as the Python orchestration grows.
 
-## 9. What not to test yet
+## 11. What not to test yet
 
 Do not expect these commands to replace existing scripts yet:
 
 ```bat
-pmanager fetch vtk
 pmanager build vtk
 pmanager sync venv
 ```
 
 At this stage:
 
-- `pmanager fetch vtk` only proves that the VTK recipe is registered;
+- `pmanager fetch vtk` can fetch VTK sources, but does not build or install anything;
 - `pmanager build vtk` only proves that the future command shape exists;
 - `pmanager sync venv` is not implemented yet.
 
 For real VTK work, continue using the validated scripts documented in
 `docs/windows-from-scratch.md`.
 
-## 10. Suggested development loop
+## 12. Suggested development loop
 
 When working on the next Python-first slice:
 
@@ -358,7 +405,7 @@ reinstalling in normal development.
 The VTK target venv remains separate. It should be managed later by `pmanager`,
 not used as the default development environment for `pmanager` itself.
 
-## 11. Rollback for this slice
+## 13. Rollback for this slice
 
 This slice is deliberately low risk.
 

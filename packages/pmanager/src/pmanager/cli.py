@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import typer
 
+from pmanager.fetch import FetchError, fetch_vtk as fetch_vtk_source
 from pmanager.libraries import get_library
 from pmanager.targets import iter_targets
 from pmanager.validation import audit_environment, import_order as import_order_validation
@@ -19,12 +20,23 @@ def list_targets() -> None:
 
 
 @fetch_app.command("vtk")
-def fetch_vtk() -> None:
+def fetch_vtk(
+    url: str = typer.Option("", help="Override the VTK source archive URL."),
+    sha256: str = typer.Option("", help="Expected SHA256 for the downloaded archive."),
+    force: bool = typer.Option(False, help="Replace an existing VTK source tree."),
+) -> None:
     library = get_library("vtk")
-    typer.echo(
-        f"Fetch recipe is registered for {library.name} {library.version}, "
-        "but Python fetch execution is not implemented in this tranche."
-    )
+    try:
+        source_dir = fetch_vtk_source(
+            url=url or None,
+            sha256=sha256 or None,
+            force=force,
+            verbose=True,
+        )
+    except FetchError as exc:
+        typer.echo(f"fetch {library.name} failed: {exc}", err=True)
+        raise typer.Exit(1) from exc
+    typer.echo(f"Fetched {library.name} {library.version} source into {source_dir}")
 
 
 @build_app.command("vtk")
