@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 import venv
@@ -28,15 +29,11 @@ PHASE1_TARGETS = {
     },
 }
 
+DEFAULT_TOOL_VENV = "pmanager-dev"
+
 
 def repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
-
-
-def default_target() -> str:
-    if os.name == "nt":
-        return "win-amd64-msvc2022-py310-release"
-    return "linux-x86_64-gcc-py312-release"
 
 
 def venv_python(venv_dir: Path) -> Path:
@@ -65,6 +62,20 @@ def ensure_not_recreating_active_venv(venv_dir: Path) -> None:
         f"warning: bootstrap is running from a different active venv: {active_venv}",
         file=sys.stderr,
     )
+
+
+def remove_venv(venv_dir: Path, venvs_root: Path) -> None:
+    resolved_venv = venv_dir.resolve(strict=False)
+    resolved_root = venvs_root.resolve(strict=False)
+    if not path_is_within(resolved_venv, resolved_root):
+        raise RuntimeError(f"Refusing to remove a venv outside {resolved_root}: {resolved_venv}")
+
+    active_venv = os.environ.get("VIRTUAL_ENV")
+    if active_venv and Path(active_venv).resolve(strict=False) == resolved_venv:
+        raise RuntimeError(f"Refusing to remove the active venv: {resolved_venv}")
+
+    if resolved_venv.exists():
+        shutil.rmtree(resolved_venv)
 
 
 def ensure_venv(venv_dir: Path) -> Path:
@@ -104,18 +115,30 @@ def install_pmanager_editable(python_path: Path, root: Path) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Create/select the target development venv and install pmanager editable."
+        description="Create/select the pmanager development venv and install pmanager editable."
     )
     parser.add_argument(
         "--target",
-        default=default_target(),
         choices=sorted(PHASE1_TARGETS),
-        help="Phase-1 target venv to prepare.",
+        help=(
+            "Deprecated transition option: prepare .venvs/<target> instead of "
+            f".venvs/{DEFAULT_TOOL_VENV}."
+        ),
+    )
+    parser.add_argument(
+        "--venv-name",
+        default=DEFAULT_TOOL_VENV,
+        help="Tooling venv name under .venvs/.",
     )
     parser.add_argument(
         "--no-install",
         action="store_true",
         help="Create/select the venv without installing pmanager.",
+    )
+    parser.add_argument(
+        "--recreate",
+        action="store_true",
+        help="Delete and recreate the selected venv. Refuses to remove the active venv.",
     )
     return parser.parse_args()
 
@@ -123,22 +146,28 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     root = repo_root()
-    target = args.target
-    venv_dir = root / ".venvs" / target
+    venv_name = args.target or args.venv_name
+    venvs_root = root / ".venvs"
+    venv_dir = venvs_root / venv_name
 
-    if not path_is_within(venv_dir, root / ".venvs"):
+    if not path_is_within(venv_dir, venvs_root):
         raise RuntimeError(f"Refusing to prepare a venv outside the repo .venvs directory: {venv_dir}")
 
     ensure_not_recreating_active_venv(venv_dir)
+    if args.recreate:
+        remove_venv(venv_dir, venvs_root)
+
     python_path = ensure_venv(venv_dir)
 
     if not args.no_install:
         install_dev_tools(python_path)
         install_pmanager_editable(python_path, root)
 
-    print(f"Target: {target}")
+    print(f"Venv name: {venv_name}")
     print(f"Venv:   {venv_dir}")
     print(f"Python: {python_path}")
+    if args.target:
+        print("Note: --target is transitional; prefer the default pmanager-dev tooling venv.")
     return 0
 
 
