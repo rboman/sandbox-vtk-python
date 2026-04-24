@@ -1,0 +1,276 @@
+# Python-first development environment
+
+This document explains how to test the current Python-first orchestration slice.
+
+It is intentionally narrower than `docs/windows-from-scratch.md`: it does **not**
+build VTK yet, does **not** replace the PowerShell/Bash build scripts, and does
+**not** migrate `sync-venv`.
+
+The current goal is only to validate that:
+
+- a target venv can be created or selected;
+- `pmanager` can be installed editable into that venv;
+- the phase-1 targets are exposed from Python code;
+- the future commands `pmanager fetch vtk` and `pmanager build vtk` exist;
+- the unit tests pass without requiring a VTK build.
+
+## Current scope
+
+Implemented in this slice:
+
+- `scripts/bootstrap-dev-env.py`
+- `pmanager.paths`
+- `pmanager.targets`
+- `pmanager.libraries`
+- `pmanager.environment`
+- preparatory CLI commands:
+  - `pmanager fetch vtk`
+  - `pmanager build vtk`
+
+Not implemented yet:
+
+- Python VTK source download
+- Python VTK build orchestration
+- Python venv synchronization
+- Python Windows DLL staging
+- replacement of existing PowerShell/Bash scripts
+
+## 1. Start from the repository root
+
+Windows PowerShell:
+
+```powershell
+cd D:\dev\VIBECODING\sandbox-vtk-python
+```
+
+Optional sanity check:
+
+```powershell
+git status --short
+```
+
+The repository may contain local development changes, but this slice should not
+modify the existing build/sync/fetch scripts.
+
+## 2. Bootstrap the target development venv
+
+Run:
+
+```powershell
+python .\scripts\bootstrap-dev-env.py --target win-amd64-msvc2022-py310-release
+```
+
+Expected behavior:
+
+- creates `.venvs\win-amd64-msvc2022-py310-release` if missing;
+- installs `packages\pmanager` in editable mode;
+- reuses the existing editable install if it already points to this checkout;
+- prints the target, venv path, and Python executable.
+
+Typical output:
+
+```text
+pmanager is already installed editable from this checkout.
+Target: win-amd64-msvc2022-py310-release
+Venv:   D:\dev\VIBECODING\sandbox-vtk-python\.venvs\win-amd64-msvc2022-py310-release
+Python: D:\dev\VIBECODING\sandbox-vtk-python\.venvs\win-amd64-msvc2022-py310-release\Scripts\python.exe
+```
+
+If the venv does not exist yet, the first run may take longer because Python has
+to create it and install `pmanager`.
+
+## 3. Enter or use the target venv
+
+For interactive development, activate it:
+
+```powershell
+.\.venvs\win-amd64-msvc2022-py310-release\Scripts\Activate.ps1
+```
+
+After activation:
+
+```powershell
+python -c "import sys; print(sys.executable)"
+```
+
+Expected result: the printed executable should be under:
+
+```text
+.venvs\win-amd64-msvc2022-py310-release\Scripts\python.exe
+```
+
+You can also avoid activation and call the venv tools explicitly:
+
+```powershell
+.\.venvs\win-amd64-msvc2022-py310-release\Scripts\python.exe -m pip --version
+.\.venvs\win-amd64-msvc2022-py310-release\Scripts\pmanager.exe targets
+```
+
+## 4. Check `pmanager targets`
+
+From the activated venv:
+
+```powershell
+pmanager targets
+```
+
+Or without activation:
+
+```powershell
+.\.venvs\win-amd64-msvc2022-py310-release\Scripts\pmanager.exe targets
+```
+
+Expected output:
+
+```text
+win-amd64-msvc2022-py310-release
+linux-x86_64-gcc-py312-release
+```
+
+This confirms that `pmanager` is reading the phase-1 targets from
+`pmanager.targets`, not from hardcoded strings in the CLI command body.
+
+## 5. Check the future VTK commands
+
+These commands are intentionally placeholders for now.
+
+They must exist:
+
+```powershell
+pmanager fetch vtk --help
+pmanager build vtk --help
+```
+
+Equivalent explicit calls:
+
+```powershell
+.\.venvs\win-amd64-msvc2022-py310-release\Scripts\pmanager.exe fetch vtk --help
+.\.venvs\win-amd64-msvc2022-py310-release\Scripts\pmanager.exe build vtk --help
+```
+
+Expected result:
+
+- both commands show Typer help;
+- neither command downloads or builds anything;
+- existing scripts remain the official implementation for real VTK work.
+
+You can also run the placeholder commands directly:
+
+```powershell
+pmanager fetch vtk
+pmanager build vtk
+```
+
+Expected messages:
+
+```text
+Fetch recipe is registered for vtk 9.3.1, but Python fetch execution is not implemented in this tranche.
+Build recipe is registered for vtk 9.3.1, but Python build execution is not implemented in this tranche.
+```
+
+## 6. Run the unit tests
+
+From the repository root:
+
+```powershell
+python -m pytest -q
+```
+
+Expected result for this slice:
+
+```text
+19 passed
+```
+
+These tests do not require a VTK build. They cover:
+
+- bootstrap command construction;
+- phase-1 target definitions;
+- minimal library registry with VTK only;
+- path layout helpers;
+- environment hygiene helpers;
+- CLI availability for `fetch vtk` and `build vtk`.
+
+## 7. Optional targeted tests
+
+Run only the new pmanager-related tests:
+
+```powershell
+python -m pytest -q tests\test_bootstrap_dev_env.py tests\test_pmanager.py tests\test_pmanager_environment.py
+```
+
+Expected result:
+
+```text
+11 passed
+```
+
+The exact number may increase as the Python orchestration grows.
+
+## 8. What not to test yet
+
+Do not expect these commands to replace existing scripts yet:
+
+```powershell
+pmanager fetch vtk
+pmanager build vtk
+pmanager sync venv
+```
+
+At this stage:
+
+- `pmanager fetch vtk` only proves that the VTK recipe is registered;
+- `pmanager build vtk` only proves that the future command shape exists;
+- `pmanager sync venv` is not implemented yet.
+
+For real VTK work, continue using the validated scripts documented in
+`docs/windows-from-scratch.md`.
+
+## 9. Suggested development loop
+
+When working on the next Python-first slice:
+
+1. Bootstrap once:
+
+   ```powershell
+   python .\scripts\bootstrap-dev-env.py --target win-amd64-msvc2022-py310-release
+   ```
+
+2. Activate the target venv:
+
+   ```powershell
+   .\.venvs\win-amd64-msvc2022-py310-release\Scripts\Activate.ps1
+   ```
+
+3. Edit `packages\pmanager\src\pmanager\...`.
+
+4. Run focused tests:
+
+   ```powershell
+   python -m pytest -q tests\test_pmanager.py tests\test_pmanager_environment.py
+   ```
+
+5. Run the full unit suite:
+
+   ```powershell
+   python -m pytest -q
+   ```
+
+Because `pmanager` is installed editable, CLI changes should be visible from the
+same venv without reinstalling, unless package metadata or entry points change.
+
+## 10. Rollback for this slice
+
+This slice is deliberately low risk.
+
+It does not modify:
+
+- `scripts/windows/fetch-vtk-source.ps1`
+- `scripts/windows/build-vtk.ps1`
+- `scripts/windows/sync-venv.ps1`
+- `scripts/ubuntu/build-vtk.sh`
+- `scripts/ubuntu/sync-venv.sh`
+- Windows DLL staging logic
+
+If the new Python-first helpers misbehave, the existing VTK workflow remains
+available through `docs/windows-from-scratch.md`.

@@ -6,7 +6,12 @@ from pathlib import Path
 
 import typer
 
+from pmanager.libraries import get_library
+from pmanager.targets import iter_targets
+
 app = typer.Typer(help="Sandbox VTK / Python workflow helper.")
+fetch_app = typer.Typer(help="Fetch external library sources.")
+build_app = typer.Typer(help="Build external libraries.")
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
@@ -19,8 +24,26 @@ def _run_script(script: Path, *args: str) -> None:
 
 @app.command("targets")
 def list_targets() -> None:
-    for target in ("win-amd64-msvc2022-py310-release", "linux-x86_64-gcc-py312-release"):
-        typer.echo(target)
+    for target in iter_targets():
+        typer.echo(target.name)
+
+
+@fetch_app.command("vtk")
+def fetch_vtk() -> None:
+    library = get_library("vtk")
+    typer.echo(
+        f"Fetch recipe is registered for {library.name} {library.version}, "
+        "but Python fetch execution is not implemented in this tranche."
+    )
+
+
+@build_app.command("vtk")
+def build_vtk() -> None:
+    library = get_library("vtk")
+    typer.echo(
+        f"Build recipe is registered for {library.name} {library.version}, "
+        "but Python build execution is not implemented in this tranche."
+    )
 
 
 @app.command("audit-env")
@@ -57,3 +80,7 @@ def import_order(require_extension: bool = typer.Option(False, help="Require the
     script = REPO_ROOT / "scripts" / "validate" / "import-order.py"
     args = ["--require-extension"] if require_extension else []
     _run_script(script, *args)
+
+
+app.add_typer(fetch_app, name="fetch")
+app.add_typer(build_app, name="build")
