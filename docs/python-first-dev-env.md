@@ -99,6 +99,8 @@ python scripts\bootstrap-dev-env.py --target win-amd64-msvc2022-py310-release
 Expected behavior:
 
 - creates `.venvs\win-amd64-msvc2022-py310-release` if missing;
+- upgrades/installs the basic development tools: `pip`, `setuptools`, `wheel`,
+  `typer`, and `pytest`;
 - installs `packages\pmanager` in editable mode;
 - reuses the existing editable install if it already points to this checkout;
 - prints the target, venv path, and Python executable.
@@ -113,7 +115,7 @@ Python: D:\dev\VIBECODING\sandbox-vtk-python\.venvs\win-amd64-msvc2022-py310-rel
 ```
 
 If the venv does not exist yet, the first run may take longer because Python has
-to create it and install `pmanager`.
+to create it and install the basic Python development tools.
 
 ## 3. Enter or use the target venv
 
@@ -220,6 +222,13 @@ From the repository root:
 python -m pytest -q
 ```
 
+If you are in the activated venv, this works because the bootstrap installs
+`pytest`. If it fails with `No module named pytest`, rerun:
+
+```bat
+python scripts\bootstrap-dev-env.py --target win-amd64-msvc2022-py310-release
+```
+
 Expected result for this slice:
 
 ```text
@@ -303,9 +312,9 @@ When working on the next Python-first slice:
 Because `pmanager` is installed editable, code changes should be visible without
 reinstalling in normal development.
 
-The next intended improvement is to replace this target-venv bootstrap with a
-simpler `.venvs/pmanager-dev` bootstrap that installs `pip`, `setuptools`,
-`wheel`, `typer`, and `pytest` explicitly.
+The next intended improvement is to move this same simple bootstrap behavior to
+`.venvs/pmanager-dev`, so `pmanager` becomes a separate tooling environment
+instead of living in the VTK target venv.
 
 ## 10. Rollback for this slice
 

@@ -9,6 +9,14 @@ import venv
 from pathlib import Path
 
 
+DEV_REQUIREMENTS = (
+    "pip",
+    "setuptools",
+    "wheel",
+    "typer>=0.12,<1.0",
+    "pytest",
+)
+
 PHASE1_TARGETS = {
     "win-amd64-msvc2022-py310-release": {
         "platform": "win32",
@@ -70,113 +78,28 @@ def ensure_venv(venv_dir: Path) -> Path:
     return python_path
 
 
-def pmanager_points_to_checkout(python_path: Path, root: Path) -> bool:
-    probe = (
-        "import importlib.util; "
-        "spec = importlib.util.find_spec('pmanager'); "
-        "print(spec.origin if spec and spec.origin else '')"
-    )
-    completed = subprocess.run(
-        [str(python_path), "-c", probe],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+def run(command: list[str]) -> None:
+    completed = subprocess.run(command, check=False)
     if completed.returncode != 0:
-        return False
-
-    origin = completed.stdout.strip()
-    if not origin:
-        return False
-
-    checkout_src = root / "packages" / "pmanager" / "src"
-    return path_is_within(Path(origin), checkout_src)
+        raise SystemExit(completed.returncode)
 
 
-def query_venv_path(python_path: Path, key: str) -> Path:
-    probe = (
-        "import sysconfig; "
-        f"print(sysconfig.get_path({key!r}))"
+def install_dev_tools(python_path: Path) -> None:
+    run(
+        [
+            str(python_path),
+            "-m",
+            "pip",
+            "install",
+            "--upgrade",
+            *DEV_REQUIREMENTS,
+        ]
     )
-    completed = subprocess.run(
-        [str(python_path), "-c", probe],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    if completed.returncode != 0 or not completed.stdout.strip():
-        raise RuntimeError(f"Unable to determine venv sysconfig path: {key}")
-    return Path(completed.stdout.strip())
-
-
-def write_stdlib_editable_install(python_path: Path, root: Path) -> None:
-    src_dir = root / "packages" / "pmanager" / "src"
-    purelib = query_venv_path(python_path, "purelib")
-    scripts = query_venv_path(python_path, "scripts")
-    purelib.mkdir(parents=True, exist_ok=True)
-    scripts.mkdir(parents=True, exist_ok=True)
-
-    pth_path = purelib / "pmanager-dev.pth"
-    pth_path.write_text(str(src_dir) + "\n", encoding="utf-8")
-
-    if os.name == "nt":
-        launcher = scripts / "pmanager.cmd"
-        launcher.write_text(
-            "@echo off\r\n"
-            f"\"{python_path}\" -m pmanager %*\r\n",
-            encoding="utf-8",
-        )
-    else:
-        launcher = scripts / "pmanager"
-        launcher.write_text(
-            "#!/usr/bin/env sh\n"
-            f"exec \"{python_path}\" -m pmanager \"$@\"\n",
-            encoding="utf-8",
-        )
-        launcher.chmod(0o755)
-
-    print("Installed pmanager editable through a stdlib .pth fallback.")
-
-
-def wheel_command_available(python_path: Path) -> bool:
-    probe = "import wheel.bdist_wheel"
-    completed = subprocess.run(
-        [str(python_path), "-c", probe],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-    return completed.returncode == 0
 
 
 def install_pmanager_editable(python_path: Path, root: Path) -> None:
-    if pmanager_points_to_checkout(python_path, root):
-        write_stdlib_editable_install(python_path, root)
-        print("pmanager is already installed editable from this checkout.")
-        return
-
-    if not wheel_command_available(python_path):
-        print("wheel is not installed in the target venv; using stdlib editable fallback.")
-        write_stdlib_editable_install(python_path, root)
-        return
-
     package_dir = root / "packages" / "pmanager"
-    command = [
-        str(python_path),
-        "-m",
-        "pip",
-        "install",
-        "--no-build-isolation",
-        "-e",
-        str(package_dir),
-    ]
-    completed = subprocess.run(command, check=False, capture_output=True, text=True)
-    if completed.returncode != 0:
-        print(
-            "pip editable install failed; falling back to stdlib .pth editable install.",
-            file=sys.stderr,
-        )
-        write_stdlib_editable_install(python_path, root)
+    run([str(python_path), "-m", "pip", "install", "--upgrade", "-e", str(package_dir)])
 
 
 def parse_args() -> argparse.Namespace:
@@ -210,6 +133,7 @@ def main() -> int:
     python_path = ensure_venv(venv_dir)
 
     if not args.no_install:
+        install_dev_tools(python_path)
         install_pmanager_editable(python_path, root)
 
     print(f"Target: {target}")
