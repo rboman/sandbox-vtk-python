@@ -40,6 +40,8 @@ The current goal is only to validate that:
 - `pmanager` can be installed editable into that tooling venv;
 - the phase-1 targets are exposed from Python code;
 - the future commands `pmanager fetch vtk` and `pmanager build vtk` exist;
+- the validation scripts are importable through `pmanager.validation`;
+- the new `pmanager validate ...` command group exists;
 - the unit tests pass without requiring a VTK build.
 
 ## Current scope
@@ -51,9 +53,14 @@ Implemented in this slice:
 - `pmanager.targets`
 - `pmanager.libraries`
 - `pmanager.environment`
+- `pmanager.validation`
 - preparatory CLI commands:
   - `pmanager fetch vtk`
   - `pmanager build vtk`
+- validation CLI commands:
+  - `pmanager validate audit`
+  - `pmanager validate provenance`
+  - `pmanager validate import-order`
 
 Not implemented yet:
 
@@ -217,6 +224,39 @@ Build recipe is registered for vtk 9.3.1, but Python build execution is not impl
 
 ## 6. Run the unit tests
 
+## 6. Check the validation commands
+
+The old scripts under `scripts\validate\` still exist, but their logic now lives
+in importable modules under `pmanager.validation`.
+
+Check the new command group:
+
+```bat
+.venvs\pmanager-dev\Scripts\python.exe -m pmanager validate --help
+.venvs\pmanager-dev\Scripts\python.exe -m pmanager validate audit --help
+.venvs\pmanager-dev\Scripts\python.exe -m pmanager validate provenance --help
+.venvs\pmanager-dev\Scripts\python.exe -m pmanager validate import-order --help
+```
+
+Run a lightweight audit from the tooling venv:
+
+```bat
+.venvs\pmanager-dev\Scripts\python.exe -m pmanager validate audit --mode audit
+```
+
+This command is diagnostic. It may report environment hints depending on your
+current shell. For example, if your global `PATH` still contains an old VTK
+directory, the audit will report it. In `audit` mode that is useful information;
+it should still run without needing a VTK build.
+
+The legacy script path should also still work:
+
+```bat
+.venvs\pmanager-dev\Scripts\python.exe scripts\validate\audit-environment.py --mode audit
+```
+
+## 7. Run the unit tests
+
 From the repository root:
 
 ```bat
@@ -233,7 +273,7 @@ python scripts\bootstrap-dev-env.py
 Expected result for this slice:
 
 ```text
-20 passed
+28 passed
 ```
 
 These tests do not require a VTK build. They cover:
@@ -244,24 +284,26 @@ These tests do not require a VTK build. They cover:
 - path layout helpers;
 - environment hygiene helpers;
 - CLI availability for `fetch vtk` and `build vtk`.
+- importable validation modules;
+- CLI availability for `pmanager validate ...`.
 
-## 7. Optional targeted tests
+## 8. Optional targeted tests
 
 Run only the new pmanager-related tests:
 
 ```bat
-python -m pytest -q tests\test_bootstrap_dev_env.py tests\test_pmanager.py tests\test_pmanager_environment.py
+python -m pytest -q tests\test_bootstrap_dev_env.py tests\test_pmanager.py tests\test_pmanager_environment.py tests\test_pmanager_validation_modules.py
 ```
 
 Expected result:
 
 ```text
-13 passed
+21 passed
 ```
 
 The exact number may increase as the Python orchestration grows.
 
-## 8. What not to test yet
+## 9. What not to test yet
 
 Do not expect these commands to replace existing scripts yet:
 
@@ -280,7 +322,7 @@ At this stage:
 For real VTK work, continue using the validated scripts documented in
 `docs/windows-from-scratch.md`.
 
-## 9. Suggested development loop
+## 10. Suggested development loop
 
 When working on the next Python-first slice:
 
@@ -316,7 +358,7 @@ reinstalling in normal development.
 The VTK target venv remains separate. It should be managed later by `pmanager`,
 not used as the default development environment for `pmanager` itself.
 
-## 10. Rollback for this slice
+## 11. Rollback for this slice
 
 This slice is deliberately low risk.
 
@@ -328,6 +370,10 @@ It does not modify:
 - `scripts/ubuntu/build-vtk.sh`
 - `scripts/ubuntu/sync-venv.sh`
 - Windows DLL staging logic
+
+The validation scripts under `scripts\validate\` are modified, but only as thin
+wrappers around `pmanager.validation`. Their command-line behavior is intended
+to remain compatible.
 
 If the new Python-first helpers misbehave, the existing VTK workflow remains
 available through `docs/windows-from-scratch.md`.

@@ -34,6 +34,22 @@ def test_build_vtk_help_exists() -> None:
     assert "vtk" in result.stdout
 
 
+def test_validate_command_group_exists() -> None:
+    runner = CliRunner()
+    result = runner.invoke(app, ["validate", "--help"])
+    assert result.exit_code == 0
+    assert "audit" in result.stdout
+    assert "provenance" in result.stdout
+    assert "import-order" in result.stdout
+
+
+def test_validate_subcommand_help_exists() -> None:
+    runner = CliRunner()
+    for command in ("audit", "provenance", "import-order"):
+        result = runner.invoke(app, ["validate", command, "--help"])
+        assert result.exit_code == 0
+
+
 def test_phase1_targets_are_explicit() -> None:
     assert target_names() == (
         "win-amd64-msvc2022-py310-release",
