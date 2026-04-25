@@ -11,6 +11,7 @@ from pmanager.build import (
     install_vtk,
     make_vtk_build_plan,
     resolve_build_choice,
+    wheel_vtk,
 )
 from pmanager.cli import app
 from pmanager.cmake import read_cmake_cache_generator
@@ -50,6 +51,12 @@ def test_vtk_build_plan_uses_target_layout(tmp_path: Path) -> None:
     assert "-A" in plan.configure_command
     assert "x64" in plan.configure_command
     assert plan.build_command[-2:] == ["--config", "Release"]
+    assert plan.wheel_tools_command[:4] == [
+        str(tmp_path / ".venvs" / target / "Scripts" / "python.exe"),
+        "-m",
+        "pip",
+        "install",
+    ]
 
 
 def test_vtk_build_plan_linux_defaults_to_ninja(tmp_path: Path) -> None:
@@ -241,6 +248,92 @@ def test_install_vtk_refuses_missing_cmake_cache(tmp_path: Path) -> None:
         raise AssertionError("Expected missing CMake cache refusal")
 
 
+def test_wheel_vtk_prepares_tools_and_runs_wheel_command(monkeypatch, tmp_path: Path) -> None:
+    paths = ProjectPaths(root=tmp_path)
+    target = "win-amd64-msvc2022-py310-release"
+    python_exe = tmp_path / ".venvs" / target / "Scripts" / "python.exe"
+    plan = make_vtk_build_plan(
+        target_name=target,
+        paths=paths,
+        python_exe=python_exe,
+        requested_backend="vs",
+    )
+    python_exe.parent.mkdir(parents=True)
+    python_exe.write_text("", encoding="utf-8")
+    plan.build_dir.mkdir(parents=True)
+    (plan.build_dir / "CMakeCache.txt").write_text(
+        "CMAKE_GENERATOR:INTERNAL=Visual Studio 17 2022\n",
+        encoding="utf-8",
+    )
+    (plan.build_dir / "setup.py").write_text("from setuptools import setup\n", encoding="utf-8")
+    calls: list[tuple[list[str], Path | None]] = []
+
+    def fake_run_command(command: list[str], *, cwd: Path | None = None) -> CommandResult:
+        calls.append((command, cwd))
+        return CommandResult(command=command, cwd=cwd, returncode=0)
+
+    monkeypatch.setattr("pmanager.build.run_command", fake_run_command)
+
+    result = wheel_vtk(plan)
+
+    assert result.command == plan.wheel_command
+    assert calls == [
+        (plan.wheel_tools_command, None),
+        (plan.wheel_command, plan.build_dir),
+    ]
+    assert plan.wheelhouse_dir.exists()
+
+
+def test_wheel_vtk_refuses_missing_python(tmp_path: Path) -> None:
+    paths = ProjectPaths(root=tmp_path)
+    target = "win-amd64-msvc2022-py310-release"
+    plan = make_vtk_build_plan(
+        target_name=target,
+        paths=paths,
+        python_exe=tmp_path / ".venvs" / target / "Scripts" / "python.exe",
+        requested_backend="vs",
+    )
+    plan.build_dir.mkdir(parents=True)
+    (plan.build_dir / "CMakeCache.txt").write_text(
+        "CMAKE_GENERATOR:INTERNAL=Visual Studio 17 2022\n",
+        encoding="utf-8",
+    )
+    (plan.build_dir / "setup.py").write_text("from setuptools import setup\n", encoding="utf-8")
+
+    try:
+        wheel_vtk(plan)
+    except BuildPlanError as exc:
+        assert "Python executable does not exist" in str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("Expected missing Python refusal")
+
+
+def test_wheel_vtk_refuses_missing_setup_py(tmp_path: Path) -> None:
+    paths = ProjectPaths(root=tmp_path)
+    target = "win-amd64-msvc2022-py310-release"
+    python_exe = tmp_path / ".venvs" / target / "Scripts" / "python.exe"
+    plan = make_vtk_build_plan(
+        target_name=target,
+        paths=paths,
+        python_exe=python_exe,
+        requested_backend="vs",
+    )
+    python_exe.parent.mkdir(parents=True)
+    python_exe.write_text("", encoding="utf-8")
+    plan.build_dir.mkdir(parents=True)
+    (plan.build_dir / "CMakeCache.txt").write_text(
+        "CMAKE_GENERATOR:INTERNAL=Visual Studio 17 2022\n",
+        encoding="utf-8",
+    )
+
+    try:
+        wheel_vtk(plan)
+    except BuildPlanError as exc:
+        assert "setup.py does not exist" in str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("Expected missing setup.py refusal")
+
+
 def test_build_vtk_cli_runs_build_step(monkeypatch, tmp_path: Path) -> None:
     calls = []
     monkeypatch.setattr("pmanager.build.ProjectPaths.discover", lambda: ProjectPaths(root=tmp_path))
@@ -296,4 +389,33 @@ def test_build_vtk_cli_runs_install_step(monkeypatch, tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     assert "Running VTK install step" in result.stdout
+    assert len(calls) == 1
+
+
+def test_build_vtk_cli_runs_wheel_step(monkeypatch, tmp_path: Path) -> None:
+    calls = []
+    monkeypatch.setattr("pmanager.build.ProjectPaths.discover", lambda: ProjectPaths(root=tmp_path))
+
+    def fake_run_vtk_wheel(plan):
+        calls.append(plan)
+        return CommandResult(command=plan.wheel_command, cwd=plan.build_dir, returncode=0)
+
+    monkeypatch.setattr("pmanager.cli.run_vtk_wheel", fake_run_vtk_wheel)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "build",
+            "vtk",
+            "--target",
+            "win-amd64-msvc2022-py310-release",
+            "--backend",
+            "vs",
+            "--wheel",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Running VTK wheel step" in result.stdout
     assert len(calls) == 1

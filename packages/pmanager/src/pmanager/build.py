@@ -37,6 +37,7 @@ class VtkBuildPlan:
     configure_command: list[str]
     build_command: list[str]
     install_command: list[str]
+    wheel_tools_command: list[str]
     wheel_command: list[str]
 
 
@@ -167,6 +168,16 @@ def make_vtk_build_plan(
         build_command.extend(["--config", "Release"])
         install_command.extend(["--config", "Release"])
 
+    wheel_tools_command = [
+        str(resolved_python),
+        "-m",
+        "pip",
+        "install",
+        "--upgrade",
+        "pip",
+        "setuptools",
+        "wheel",
+    ]
     wheel_command = [
         str(resolved_python),
         "setup.py",
@@ -187,6 +198,7 @@ def make_vtk_build_plan(
         configure_command=configure_command,
         build_command=build_command,
         install_command=install_command,
+        wheel_tools_command=wheel_tools_command,
         wheel_command=wheel_command,
     )
 
@@ -212,6 +224,7 @@ def print_vtk_build_plan(plan: VtkBuildPlan) -> None:
     print("Install:")
     print(f"  {format_command(plan.install_command)}")
     print("Wheel:")
+    print(f"  {format_command(plan.wheel_tools_command)}")
     print(f"  cd {plan.build_dir}")
     print(f"  {format_command(plan.wheel_command)}")
 
@@ -258,6 +271,11 @@ def _ensure_configured_build_tree(plan: VtkBuildPlan, *, next_step: str) -> None
         )
 
 
+def _ensure_python_exists(plan: VtkBuildPlan) -> None:
+    if not plan.python_exe.exists():
+        raise BuildPlanError(f"Python executable does not exist: {plan.python_exe}")
+
+
 def build_vtk(plan: VtkBuildPlan) -> CommandResult:
     _ensure_configured_build_tree(plan, next_step="--build")
     return run_command(plan.build_command)
@@ -266,3 +284,18 @@ def build_vtk(plan: VtkBuildPlan) -> CommandResult:
 def install_vtk(plan: VtkBuildPlan) -> CommandResult:
     _ensure_configured_build_tree(plan, next_step="--install")
     return run_command(plan.install_command)
+
+
+def wheel_vtk(plan: VtkBuildPlan) -> CommandResult:
+    _ensure_configured_build_tree(plan, next_step="--wheel")
+    _ensure_python_exists(plan)
+    setup_py = plan.build_dir / "setup.py"
+    if not setup_py.exists():
+        raise BuildPlanError(
+            f"VTK wheel setup.py does not exist: {setup_py}. "
+            "Make sure VTK was configured with -DVTK_WHEEL_BUILD=ON."
+        )
+
+    plan.wheelhouse_dir.mkdir(parents=True, exist_ok=True)
+    run_command(plan.wheel_tools_command)
+    return run_command(plan.wheel_command, cwd=plan.build_dir)

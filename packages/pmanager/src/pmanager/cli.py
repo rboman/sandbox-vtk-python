@@ -9,6 +9,7 @@ from pmanager.build import (
     install_vtk as run_vtk_install,
     make_vtk_build_plan,
     print_vtk_build_plan,
+    wheel_vtk as run_vtk_wheel,
 )
 from pmanager.fetch import FetchError, fetch_vtk as fetch_vtk_source
 from pmanager.libraries import get_library
@@ -59,6 +60,7 @@ def build_vtk(
     configure: bool = typer.Option(False, "--configure", help="Run the CMake configure step."),
     build: bool = typer.Option(False, "--build", help="Run the CMake build step."),
     install: bool = typer.Option(False, "--install", help="Run the CMake install step."),
+    wheel: bool = typer.Option(False, "--wheel", help="Build the local Python vtk wheel."),
 ) -> None:
     try:
         plan = make_vtk_build_plan(
@@ -73,7 +75,7 @@ def build_vtk(
         typer.echo(f"build vtk failed: {exc}", err=True)
         raise typer.Exit(1) from exc
 
-    if not configure and not build and not install:
+    if not configure and not build and not install and not wheel:
         print_vtk_build_plan(plan)
         return
 
@@ -91,6 +93,10 @@ def build_vtk(
             typer.echo()
             typer.echo("Running VTK install step...")
             run_vtk_install(plan)
+        if wheel:
+            typer.echo()
+            typer.echo("Running VTK wheel step...")
+            run_vtk_wheel(plan)
     except (BuildPlanError, ProcessError) as exc:
         typer.echo(f"build vtk failed: {exc}", err=True)
         raise typer.Exit(1) from exc
