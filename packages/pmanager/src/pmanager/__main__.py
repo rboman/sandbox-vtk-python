@@ -11,7 +11,7 @@ PHASE1_TARGETS = (
 
 def _fallback(argv: list[str]) -> int:
     if not argv or argv in (["--help"], ["-h"]):
-        print("Usage: pmanager [targets|fetch vtk|build vtk|sync venv] [--help]")
+        print("Usage: pmanager [targets|fetch vtk|build vtk|sync venv|workflow windows-phase1] [--help]")
         return 0
 
     if argv == ["targets"]:
@@ -44,6 +44,10 @@ def _fallback(argv: list[str]) -> int:
 
     if argv in (["sync", "venv", "--help"], ["sync", "venv", "-h"]):
         print("Usage: pmanager sync venv [OPTIONS]")
+        return 0
+
+    if argv in (["workflow", "windows-phase1", "--help"], ["workflow", "windows-phase1", "-h"]):
+        print("Usage: pmanager workflow windows-phase1 [OPTIONS]")
         return 0
 
     print(f"Unsupported fallback command: {' '.join(argv)}", file=sys.stderr)

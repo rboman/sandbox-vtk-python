@@ -18,12 +18,14 @@ from pmanager.sync import SyncError, make_venv_sync_plan, sync_venv as run_sync_
 from pmanager.targets import iter_targets
 from pmanager.validation import audit_environment, import_order as import_order_validation
 from pmanager.validation import runtime_provenance as runtime_provenance_validation
+from pmanager.workflow import WorkflowError, WindowsPhase1Workflow, run_windows_phase1_or_raise
 
 app = typer.Typer(help="Sandbox VTK / Python workflow helper.")
 fetch_app = typer.Typer(help="Fetch external library sources.")
 build_app = typer.Typer(help="Build external libraries.")
 sync_app = typer.Typer(help="Synchronize target virtual environments.")
 validate_app = typer.Typer(help="Run validation checks.")
+workflow_app = typer.Typer(help="Run explicit multi-step workflows.")
 
 @app.command("targets")
 def list_targets() -> None:
@@ -136,6 +138,35 @@ def sync_venv(
         raise typer.Exit(1) from exc
 
 
+@workflow_app.command("windows-phase1")
+def workflow_windows_phase1(
+    target: str = typer.Option("win-amd64-msvc2022-py310-release", help="Windows phase-1 target."),
+    backend: str = typer.Option("auto", help="Build backend: auto, ninja, or vs."),
+    generator: str = typer.Option("", help="Explicit CMake generator."),
+    architecture: str = typer.Option("x64", help="Windows Visual Studio architecture."),
+    parallel: int = typer.Option(0, help="Parallel build jobs. 0 means CPU count."),
+    force_fetch: bool = typer.Option(False, "--force-fetch", help="Replace the existing VTK source tree."),
+    skip_fetch: bool = typer.Option(False, "--skip-fetch", help="Do not fetch VTK even if missing."),
+    skip_validation: bool = typer.Option(False, "--skip-validation", help="Skip final runtime validation."),
+) -> None:
+    try:
+        run_windows_phase1_or_raise(
+            WindowsPhase1Workflow(
+                target=target,
+                backend=backend,
+                generator=generator or None,
+                architecture=architecture,
+                parallel=parallel if parallel > 0 else None,
+                force_fetch=force_fetch,
+                skip_fetch=skip_fetch,
+                skip_validation=skip_validation,
+            )
+        )
+    except (WorkflowError, ProcessError, ValueError) as exc:
+        typer.echo(f"workflow windows-phase1 failed: {exc}", err=True)
+        raise typer.Exit(1) from exc
+
+
 @validate_app.command("audit")
 def validate_audit(
     mode: str = typer.Option("audit", help="audit or strict"),
@@ -226,3 +257,4 @@ app.add_typer(fetch_app, name="fetch")
 app.add_typer(build_app, name="build")
 app.add_typer(sync_app, name="sync")
 app.add_typer(validate_app, name="validate")
+app.add_typer(workflow_app, name="workflow")

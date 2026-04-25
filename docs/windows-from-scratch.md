@@ -4,11 +4,10 @@ This document records the full Windows phase-1 procedure from a fresh clone.
 
 ## Shell note
 
-New Windows user-facing instructions should prefer `cmd.exe` syntax. This
-document still contains PowerShell commands because the currently validated
-phase-1 workflow uses existing `.ps1` scripts. As `pmanager` takes over the real
-logic, these steps should be replaced by `cmd.exe` + Python commands or thin
-`.cmd` wrappers.
+New Windows user-facing instructions should prefer `cmd.exe` syntax. The
+Python-first `pmanager` workflow is now the preferred path for new validation
+runs. The older PowerShell scripts are kept temporarily as a migration fallback
+until they are explicitly removed.
 
 It assumes:
 
@@ -27,6 +26,29 @@ The goal is to validate, from scratch, that:
 - `pyvista` installs against that local VTK runtime
 - `codecpp` and `pyvista` import in both orders in one process
 - runtime DLLs resolve from the venv, not from the SDK tree
+
+## Python-first quick path
+
+From a Visual Studio developer `cmd.exe` prompt:
+
+```bat
+cd /d D:\dev\VIBECODING\sandbox-vtk-python
+python scripts\bootstrap-dev-env.py
+.venvs\pmanager-dev\Scripts\activate.bat
+pmanager workflow windows-phase1
+```
+
+This workflow runs the validated sequence:
+
+```text
+fetch -> configure -> build -> install -> wheel -> sync -> validate
+```
+
+It prints each phase before running it. If you prefer to test each phase
+manually, follow `docs/python-first-dev-env.md`.
+
+The rest of this document records the older script-based validation path and is
+kept as transition documentation.
 
 ## Recommended clean-room strategy
 

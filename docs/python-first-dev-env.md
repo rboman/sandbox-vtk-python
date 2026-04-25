@@ -47,6 +47,8 @@ The current goal is only to validate that:
 - `pmanager build vtk --wheel` can generate the local Python `vtk` wheel;
 - `pmanager sync venv` can install the local VTK wheel, constrain PyVista, and
   install the local packages into the target venv;
+- `pmanager workflow windows-phase1` can run the validated Windows sequence as
+  an explicit multi-step workflow;
 - the validation scripts are importable through `pmanager.validation`;
 - the new `pmanager validate ...` command group exists;
 - the unit tests pass without requiring a VTK build.
@@ -73,6 +75,8 @@ Implemented in this slice:
   - `pmanager validate import-order`
 - sync CLI commands:
   - `pmanager sync venv`
+- workflow CLI commands:
+  - `pmanager workflow windows-phase1`
 
 Still transitional:
 
@@ -492,6 +496,45 @@ paths before running the strict audit and pip commands.
 
 ## 14. Check the validation commands
 
+## 14. Optional: run the Windows phase-1 workflow
+
+Once you have validated the individual commands, the same sequence can be run as
+one explicit workflow:
+
+```bat
+pmanager workflow windows-phase1
+```
+
+The workflow runs:
+
+```text
+fetch if source is missing
+configure
+build
+install
+wheel
+sync venv
+validate provenance
+validate import-order
+```
+
+It prints a heading before each step. It is a convenience command, not a hidden
+replacement for understanding the individual phases.
+
+Useful options:
+
+```bat
+pmanager workflow windows-phase1 --skip-fetch
+pmanager workflow windows-phase1 --skip-validation
+pmanager workflow windows-phase1 --backend ninja
+pmanager workflow windows-phase1 --backend vs
+```
+
+The final validation is executed with the target venv Python, not with the
+`pmanager-dev` tooling Python.
+
+## 15. Check the validation commands
+
 The old scripts under `scripts\validate\` still exist, but their logic now lives
 in importable modules under `pmanager.validation`.
 
@@ -521,7 +564,7 @@ The legacy script path should also still work:
 python scripts\validate\audit-environment.py --mode audit
 ```
 
-## 15. Run the unit tests
+## 16. Run the unit tests
 
 From the repository root:
 
@@ -539,7 +582,7 @@ python scripts\bootstrap-dev-env.py
 Expected result for this slice:
 
 ```text
-65 passed
+70 passed
 ```
 
 These tests do not require a VTK build. They cover:
@@ -557,24 +600,25 @@ These tests do not require a VTK build. They cover:
   configure/build/install/wheel command dispatch.
 - VTK venv sync planning, local wheel selection, dynamic VTK constraints,
   Windows DLL staging helpers, and command construction without running pip.
+- Windows phase-1 workflow orchestration without running the long VTK build.
 
-## 16. Optional targeted tests
+## 17. Optional targeted tests
 
 Run only the new pmanager-related tests:
 
 ```bat
-python -m pytest -q tests\test_bootstrap_dev_env.py tests\test_pmanager.py tests\test_pmanager_environment.py tests\test_pmanager_validation_modules.py tests\test_pmanager_fetch.py tests\test_pmanager_build.py tests\test_pmanager_process.py tests\test_pmanager_sync.py
+python -m pytest -q tests\test_bootstrap_dev_env.py tests\test_pmanager.py tests\test_pmanager_environment.py tests\test_pmanager_validation_modules.py tests\test_pmanager_fetch.py tests\test_pmanager_build.py tests\test_pmanager_process.py tests\test_pmanager_sync.py tests\test_pmanager_workflow.py
 ```
 
 Expected result:
 
 ```text
-58 passed
+63 passed
 ```
 
 The exact number may increase as the Python orchestration grows.
 
-## 17. What not to test yet
+## 18. What not to test yet
 
 Do not expect these commands to replace existing scripts yet:
 
@@ -591,11 +635,12 @@ At this stage:
 - `pmanager build vtk --wheel` can generate the local Python wheel;
 - `pmanager build vtk` without phase switches prints a dry-run plan;
 - `pmanager sync venv` can synchronize the target venv from the local wheelhouse.
+- `pmanager workflow windows-phase1` can run the whole Windows sequence.
 
 For real VTK work, continue using the validated scripts documented in
 `docs/windows-from-scratch.md`.
 
-## 18. Suggested development loop
+## 19. Suggested development loop
 
 When working on the next Python-first slice:
 
@@ -631,7 +676,7 @@ reinstalling in normal development.
 The VTK target venv remains separate. It should be managed later by `pmanager`,
 not used as the default development environment for `pmanager` itself.
 
-## 19. Rollback for this slice
+## 20. Rollback for this slice
 
 This slice is deliberately low risk.
 
