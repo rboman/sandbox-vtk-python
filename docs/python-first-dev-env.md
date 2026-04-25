@@ -221,8 +221,9 @@ By default, `--backend auto` prefers Ninja when `ninja.exe` is available in
 `PATH`. If Ninja is not found on Windows, `pmanager` falls back to the Visual
 Studio generator.
 
-On Windows with Ninja, the current shell must still have access to the compiler
-toolchain used by CMake. In practice, start from:
+On Windows with Ninja, the current shell must be a command-line build
+environment that CMake/Ninja can use. For this workflow, the supported simple
+route is to start from:
 
 ```text
 x64 Native Tools Command Prompt for VS 2022
@@ -235,8 +236,15 @@ cd /d D:\dev\VIBECODING\sandbox-vtk-python
 .venvs\pmanager-dev\Scripts\activate.bat
 ```
 
-If `pmanager` selects Ninja but `cl.exe` is not visible, it stops before running
-CMake and asks you to use the Visual Studio developer `cmd.exe` prompt.
+If `pmanager` selects Ninja but the current `cmd.exe` does not look like an
+MSVC command-line build environment, it stops before running CMake and asks you
+to use the Visual Studio developer `cmd.exe` prompt.
+
+Do not over-interpret `where cl`: it is a useful clue for Ninja/MSVC, but it is
+not a universal test for every CMake generator. A normal `cmd.exe` may still be
+able to configure a Visual Studio generator even when `where cl` does not find
+`cl.exe`. The current `pmanager` default prefers Ninja, so the Visual Studio
+developer prompt is the least surprising path for now.
 
 To force Ninja explicitly:
 
@@ -279,7 +287,7 @@ python -m pytest -q tests\test_pmanager_build.py
 Expected result:
 
 ```text
-9 passed
+10 passed
 ```
 
 These tests do not configure or compile VTK. They also verify that the Python

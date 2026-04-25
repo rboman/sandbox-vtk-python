@@ -141,6 +141,7 @@ def test_configure_vtk_refuses_windows_ninja_without_compiler(monkeypatch, tmp_p
         configure_vtk(plan)
     except BuildPlanError as exc:
         assert "Ninja was selected" in str(exc)
+        assert "does not look like an MSVC command-line build environment" in str(exc)
         assert "x64 Native Tools Command Prompt" in str(exc)
     else:  # pragma: no cover - defensive
         raise AssertionError("Expected missing compiler refusal")

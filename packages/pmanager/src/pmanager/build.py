@@ -232,10 +232,11 @@ def _ensure_compiler_environment(plan: VtkBuildPlan) -> None:
         return
 
     raise BuildPlanError(
-        "Ninja was selected, but no C/C++ compiler is visible in this cmd.exe session. "
-        "Open an 'x64 Native Tools Command Prompt for VS 2022', activate "
-        ".venvs\\pmanager-dev\\Scripts\\activate.bat, then rerun the same pmanager command. "
-        "Alternatively, force the Visual Studio generator with '--backend vs'."
+        "Ninja was selected, but this cmd.exe session does not look like an MSVC command-line "
+        "build environment. For the current Python-first workflow, open an 'x64 Native Tools "
+        "Command Prompt for VS 2022', activate .venvs\\pmanager-dev\\Scripts\\activate.bat, "
+        "then rerun the same pmanager command. Alternatively, force the Visual Studio "
+        "generator with '--backend vs'."
     )
 
 
