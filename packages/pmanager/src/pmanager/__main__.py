@@ -11,7 +11,7 @@ PHASE1_TARGETS = (
 
 def _fallback(argv: list[str]) -> int:
     if not argv or argv in (["--help"], ["-h"]):
-        print("Usage: pmanager [targets|fetch vtk|build vtk] [--help]")
+        print("Usage: pmanager [targets|fetch vtk|build vtk|sync venv] [--help]")
         return 0
 
     if argv == ["targets"]:
@@ -40,6 +40,10 @@ def _fallback(argv: list[str]) -> int:
             "Build recipe is registered for vtk 9.3.1. "
             "Install the pmanager tooling venv dependencies to run the full Typer CLI."
         )
+        return 0
+
+    if argv in (["sync", "venv", "--help"], ["sync", "venv", "-h"]):
+        print("Usage: pmanager sync venv [OPTIONS]")
         return 0
 
     print(f"Unsupported fallback command: {' '.join(argv)}", file=sys.stderr)

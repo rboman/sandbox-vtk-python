@@ -30,9 +30,9 @@ and should manage target environments such as:
 .venvs/linux-x86_64-gcc-py312-release/
 ```
 
-It is intentionally narrower than `docs/windows-from-scratch.md`: it does **not**
-install VTK yet, does **not** replace the PowerShell/Bash build scripts, and
-does **not** migrate `sync-venv`.
+It is intentionally narrower than `docs/windows-from-scratch.md`: it does
+not replace the PowerShell/Bash build scripts yet, but the main fetch, build,
+wheel, and venv sync steps now have Python-first `pmanager` commands.
 
 The current goal is only to validate that:
 
@@ -45,6 +45,8 @@ The current goal is only to validate that:
 - `pmanager build vtk --build` can run the CMake build step after configuration;
 - `pmanager build vtk --install` can install the native SDK after a build;
 - `pmanager build vtk --wheel` can generate the local Python `vtk` wheel;
+- `pmanager sync venv` can install the local VTK wheel, constrain PyVista, and
+  install the local packages into the target venv;
 - the validation scripts are importable through `pmanager.validation`;
 - the new `pmanager validate ...` command group exists;
 - the unit tests pass without requiring a VTK build.
@@ -60,6 +62,7 @@ Implemented in this slice:
 - `pmanager.environment`
 - `pmanager.validation`
 - `pmanager.fetch`
+- `pmanager.sync`
 - implemented CLI commands:
   - `pmanager fetch vtk`
 - build CLI commands:
@@ -68,11 +71,11 @@ Implemented in this slice:
   - `pmanager validate audit`
   - `pmanager validate provenance`
   - `pmanager validate import-order`
+- sync CLI commands:
+  - `pmanager sync venv`
 
-Not implemented yet:
+Still transitional:
 
-- Python venv synchronization
-- Python Windows DLL staging
 - replacement of existing PowerShell/Bash scripts
 
 ## 1. Start from the repository root
@@ -450,9 +453,44 @@ The produced wheel version may be `9.3.1.dev0`; do not expect the filename to
 contain exactly `9.3.1`.
 
 This command only builds the wheel file. It does not install that wheel into the
-target venv yet. That will be handled by the later venv sync step.
+target venv yet. That is handled by the venv sync step.
 
-## 13. Check the validation commands
+## 13. Optional: synchronize the target venv
+
+After the wheel exists, synchronize the target venv:
+
+```bat
+pmanager sync venv --target win-amd64-msvc2022-py310-release
+```
+
+Expected behavior:
+
+- creates `.venvs\win-amd64-msvc2022-py310-release` if it is missing;
+- runs the strict environment audit with the target venv selected;
+- installs the local `vtk` wheel with `--no-deps --force-reinstall`;
+- detects the actually installed VTK version, for example `9.3.1.dev0`;
+- writes `.tmp\vtk-constraint-win-amd64-msvc2022-py310-release.txt`;
+- installs `pyvista` under both the project constraints and the dynamic VTK
+  constraint;
+- on Windows, stages VTK DLLs into the target venv and writes
+  `vtkmodules\_build_paths.py`;
+- installs `codecpp`, `codepy`, and `pmanager` into the target venv.
+
+If you only want to test the VTK/PyVista part first:
+
+```bat
+pmanager sync venv --target win-amd64-msvc2022-py310-release --skip-local-packages
+```
+
+The sync step is intentionally still explicit. It does not delete or recreate an
+active venv.
+
+`pmanager sync venv` does not modify your parent `cmd.exe` environment. For its
+own subprocesses, it removes suspicious `PATH` entries such as old global VTK
+directories, foreign `.venv`/`.venvs` directories, `site-packages`, and Conda
+paths before running the strict audit and pip commands.
+
+## 14. Check the validation commands
 
 The old scripts under `scripts\validate\` still exist, but their logic now lives
 in importable modules under `pmanager.validation`.
@@ -483,7 +521,7 @@ The legacy script path should also still work:
 python scripts\validate\audit-environment.py --mode audit
 ```
 
-## 14. Run the unit tests
+## 15. Run the unit tests
 
 From the repository root:
 
@@ -501,7 +539,7 @@ python scripts\bootstrap-dev-env.py
 Expected result for this slice:
 
 ```text
-56 passed
+65 passed
 ```
 
 These tests do not require a VTK build. They cover:
@@ -517,30 +555,31 @@ These tests do not require a VTK build. They cover:
 - VTK fetch planning, checksum, safe extraction, and local-archive CLI behavior.
 - VTK build planning, CMake command construction, and explicit
   configure/build/install/wheel command dispatch.
+- VTK venv sync planning, local wheel selection, dynamic VTK constraints,
+  Windows DLL staging helpers, and command construction without running pip.
 
-## 15. Optional targeted tests
+## 16. Optional targeted tests
 
 Run only the new pmanager-related tests:
 
 ```bat
-python -m pytest -q tests\test_bootstrap_dev_env.py tests\test_pmanager.py tests\test_pmanager_environment.py tests\test_pmanager_validation_modules.py tests\test_pmanager_fetch.py tests\test_pmanager_build.py tests\test_pmanager_process.py
+python -m pytest -q tests\test_bootstrap_dev_env.py tests\test_pmanager.py tests\test_pmanager_environment.py tests\test_pmanager_validation_modules.py tests\test_pmanager_fetch.py tests\test_pmanager_build.py tests\test_pmanager_process.py tests\test_pmanager_sync.py
 ```
 
 Expected result:
 
 ```text
-49 passed
+58 passed
 ```
 
 The exact number may increase as the Python orchestration grows.
 
-## 16. What not to test yet
+## 17. What not to test yet
 
 Do not expect these commands to replace existing scripts yet:
 
 ```bat
 pmanager build vtk
-pmanager sync venv
 ```
 
 At this stage:
@@ -551,13 +590,12 @@ At this stage:
 - `pmanager build vtk --install` can install the native SDK tree;
 - `pmanager build vtk --wheel` can generate the local Python wheel;
 - `pmanager build vtk` without phase switches prints a dry-run plan;
-- `pmanager build vtk` does not install the wheel into the target venv yet;
-- `pmanager sync venv` is not implemented yet.
+- `pmanager sync venv` can synchronize the target venv from the local wheelhouse.
 
 For real VTK work, continue using the validated scripts documented in
 `docs/windows-from-scratch.md`.
 
-## 17. Suggested development loop
+## 18. Suggested development loop
 
 When working on the next Python-first slice:
 
@@ -593,7 +631,7 @@ reinstalling in normal development.
 The VTK target venv remains separate. It should be managed later by `pmanager`,
 not used as the default development environment for `pmanager` itself.
 
-## 18. Rollback for this slice
+## 19. Rollback for this slice
 
 This slice is deliberately low risk.
 

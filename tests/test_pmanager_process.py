@@ -31,7 +31,7 @@ def test_resolve_command_fails_when_missing(monkeypatch) -> None:
 def test_run_command_returns_resolved_command(monkeypatch) -> None:
     monkeypatch.setattr("pmanager.process.shutil.which", lambda name: f"/tools/{name}")
 
-    def fake_run(command, *, cwd=None, check=False):
+    def fake_run(command, *, cwd=None, env=None, check=False):
         return subprocess.CompletedProcess(command, 0)
 
     monkeypatch.setattr("pmanager.process.subprocess.run", fake_run)
@@ -40,3 +40,16 @@ def test_run_command_returns_resolved_command(monkeypatch) -> None:
 
     assert result.command == ["/tools/cmake", "--version"]
     assert result.returncode == 0
+
+
+def test_run_command_text_returns_stdout(monkeypatch) -> None:
+    monkeypatch.setattr("pmanager.process.shutil.which", lambda name: f"/tools/{name}")
+
+    def fake_run(command, *, cwd=None, env=None, check=False, text=False, stdout=None, stderr=None):
+        return subprocess.CompletedProcess(command, 0, stdout="9.3.1.dev0\n", stderr="")
+
+    monkeypatch.setattr("pmanager.process.subprocess.run", fake_run)
+
+    from pmanager.process import run_command_text
+
+    assert run_command_text(["python", "-c", "print('x')"]) == "9.3.1.dev0"

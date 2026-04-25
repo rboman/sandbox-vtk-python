@@ -14,6 +14,7 @@ from pmanager.build import (
 from pmanager.fetch import FetchError, fetch_vtk as fetch_vtk_source
 from pmanager.libraries import get_library
 from pmanager.process import ProcessError
+from pmanager.sync import SyncError, make_venv_sync_plan, sync_venv as run_sync_venv
 from pmanager.targets import iter_targets
 from pmanager.validation import audit_environment, import_order as import_order_validation
 from pmanager.validation import runtime_provenance as runtime_provenance_validation
@@ -21,6 +22,7 @@ from pmanager.validation import runtime_provenance as runtime_provenance_validat
 app = typer.Typer(help="Sandbox VTK / Python workflow helper.")
 fetch_app = typer.Typer(help="Fetch external library sources.")
 build_app = typer.Typer(help="Build external libraries.")
+sync_app = typer.Typer(help="Synchronize target virtual environments.")
 validate_app = typer.Typer(help="Run validation checks.")
 
 @app.command("targets")
@@ -99,6 +101,38 @@ def build_vtk(
             run_vtk_wheel(plan)
     except (BuildPlanError, ProcessError) as exc:
         typer.echo(f"build vtk failed: {exc}", err=True)
+        raise typer.Exit(1) from exc
+
+
+@sync_app.command("venv")
+def sync_venv(
+    target: str = typer.Option("win-amd64-msvc2022-py310-release", help="Target venv to synchronize."),
+    python_exe: str = typer.Option("", help="Python executable used to create the target venv if missing."),
+    constraints_file: str = typer.Option("", help="Override the PyVista constraints file."),
+    no_index: bool = typer.Option(False, "--no-index", help="Install PyVista from local links only."),
+    skip_local_packages: bool = typer.Option(
+        False,
+        "--skip-local-packages",
+        help="Install vtk and pyvista only; skip codecpp/codepy/pmanager.",
+    ),
+) -> None:
+    try:
+        plan = make_venv_sync_plan(
+            target_name=target,
+            python_exe=python_exe or None,
+            constraints_file=constraints_file or None,
+        )
+        typer.echo(f"Target:      {plan.target.name}")
+        typer.echo(f"Venv:        {plan.venv_dir}")
+        typer.echo(f"Python:      {plan.python_exe}")
+        typer.echo(f"Wheelhouse:  {plan.wheelhouse_dir}")
+        typer.echo(f"SDK install: {plan.sdk_dir}")
+        typer.echo(f"Constraints: {plan.constraints_file}")
+        typer.echo()
+        typer.echo("Running venv sync...")
+        run_sync_venv(plan, no_index=no_index, install_local_packages=not skip_local_packages)
+    except (SyncError, ProcessError, ValueError) as exc:
+        typer.echo(f"sync venv failed: {exc}", err=True)
         raise typer.Exit(1) from exc
 
 
@@ -190,4 +224,5 @@ def import_order(require_extension: bool = typer.Option(False, help="Require the
 
 app.add_typer(fetch_app, name="fetch")
 app.add_typer(build_app, name="build")
+app.add_typer(sync_app, name="sync")
 app.add_typer(validate_app, name="validate")
