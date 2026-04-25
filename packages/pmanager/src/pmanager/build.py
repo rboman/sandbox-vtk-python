@@ -256,6 +256,7 @@ def _ensure_compiler_environment(plan: VtkBuildPlan) -> None:
 def configure_vtk(plan: VtkBuildPlan) -> CommandResult:
     _ensure_vtk_source_exists(plan)
     _ensure_compiler_environment(plan)
+    _ensure_python_exists(plan)
     plan.build_dir.mkdir(parents=True, exist_ok=True)
     plan.install_dir.mkdir(parents=True, exist_ok=True)
     plan.wheelhouse_dir.mkdir(parents=True, exist_ok=True)

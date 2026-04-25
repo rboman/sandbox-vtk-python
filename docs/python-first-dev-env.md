@@ -509,6 +509,7 @@ The workflow runs:
 
 ```text
 fetch if source is missing
+prepare target venv
 configure
 build
 install
@@ -530,8 +531,9 @@ pmanager workflow windows-phase1 --backend ninja
 pmanager workflow windows-phase1 --backend vs
 ```
 
-The final validation is executed with the target venv Python, not with the
-`pmanager-dev` tooling Python.
+The workflow creates the target venv before configuring VTK, because CMake needs
+the target Python executable for `Python3_EXECUTABLE`. The final validation is
+executed with the target venv Python, not with the `pmanager-dev` tooling Python.
 
 ## 15. Check the validation commands
 
@@ -582,7 +584,7 @@ python scripts\bootstrap-dev-env.py
 Expected result for this slice:
 
 ```text
-70 passed
+71 passed
 ```
 
 These tests do not require a VTK build. They cover:

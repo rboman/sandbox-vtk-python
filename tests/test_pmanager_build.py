@@ -113,6 +113,8 @@ def test_configure_vtk_runs_configure_command(monkeypatch, tmp_path: Path) -> No
         python_exe=tmp_path / ".venvs" / target / "Scripts" / "python.exe",
         requested_backend="vs",
     )
+    plan.python_exe.parent.mkdir(parents=True)
+    plan.python_exe.write_text("", encoding="utf-8")
     plan.source_dir.mkdir(parents=True)
     calls: list[tuple[list[str], Path | None]] = []
 
@@ -153,6 +155,25 @@ def test_configure_vtk_refuses_windows_ninja_without_compiler(monkeypatch, tmp_p
         assert "x64 Native Tools Command Prompt" in str(exc)
     else:  # pragma: no cover - defensive
         raise AssertionError("Expected missing compiler refusal")
+
+
+def test_configure_vtk_refuses_missing_python(tmp_path: Path) -> None:
+    paths = ProjectPaths(root=tmp_path)
+    target = "win-amd64-msvc2022-py310-release"
+    plan = make_vtk_build_plan(
+        target_name=target,
+        paths=paths,
+        python_exe=tmp_path / ".venvs" / target / "Scripts" / "python.exe",
+        requested_backend="vs",
+    )
+    plan.source_dir.mkdir(parents=True)
+
+    try:
+        configure_vtk(plan)
+    except BuildPlanError as exc:
+        assert "Python executable does not exist" in str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("Expected missing Python refusal")
 
 
 def test_build_vtk_runs_build_command(monkeypatch, tmp_path: Path) -> None:

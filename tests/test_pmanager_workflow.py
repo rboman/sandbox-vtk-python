@@ -21,6 +21,7 @@ def test_windows_phase1_workflow_runs_steps_in_order(monkeypatch, tmp_path: Path
         return inner
 
     monkeypatch.setattr("pmanager.workflow.fetch_vtk", record("fetch"))
+    monkeypatch.setattr("pmanager.workflow.ensure_target_venv", record("venv"))
     monkeypatch.setattr("pmanager.workflow.configure_vtk", record("configure"))
     monkeypatch.setattr("pmanager.workflow.build_vtk", record("build"))
     monkeypatch.setattr("pmanager.workflow.install_vtk", record("install"))
@@ -42,7 +43,7 @@ def test_windows_phase1_workflow_runs_steps_in_order(monkeypatch, tmp_path: Path
         paths=paths,
     )
 
-    assert calls == ["fetch", "configure", "build", "install", "wheel", "sync", "validate"]
+    assert calls == ["fetch", "venv", "configure", "build", "install", "wheel", "sync", "validate"]
 
 
 def test_windows_phase1_workflow_skips_existing_source_and_validation(
@@ -55,6 +56,7 @@ def test_windows_phase1_workflow_skips_existing_source_and_validation(
     (paths.source_root / "vtk-9.3.1").mkdir(parents=True)
 
     monkeypatch.setattr("pmanager.workflow.fetch_vtk", lambda *args, **kwargs: calls.append("fetch"))
+    monkeypatch.setattr("pmanager.workflow.ensure_target_venv", lambda *args, **kwargs: calls.append("venv"))
     monkeypatch.setattr("pmanager.workflow.configure_vtk", lambda *args, **kwargs: calls.append("configure"))
     monkeypatch.setattr("pmanager.workflow.build_vtk", lambda *args, **kwargs: calls.append("build"))
     monkeypatch.setattr("pmanager.workflow.install_vtk", lambda *args, **kwargs: calls.append("install"))
@@ -76,7 +78,7 @@ def test_windows_phase1_workflow_skips_existing_source_and_validation(
         paths=paths,
     )
 
-    assert calls == ["configure", "build", "install", "wheel", "sync"]
+    assert calls == ["venv", "configure", "build", "install", "wheel", "sync"]
 
 
 def test_validate_target_runtime_uses_target_python(monkeypatch, tmp_path: Path) -> None:

@@ -16,7 +16,7 @@ from pmanager.fetch import FetchError, fetch_vtk
 from pmanager.libraries import get_library
 from pmanager.paths import ProjectPaths
 from pmanager.process import CommandResult, run_command
-from pmanager.sync import SyncError, make_venv_sync_plan, sync_venv
+from pmanager.sync import SyncError, ensure_target_venv, make_venv_sync_plan, sync_venv
 
 
 class WorkflowError(RuntimeError):
@@ -88,6 +88,12 @@ def run_windows_phase1_workflow(
         _step("Fetch VTK source")
         fetch_vtk(force=workflow.force_fetch, paths=paths, verbose=True)
 
+    _step("Prepare target venv")
+    sync_plan = make_venv_sync_plan(target_name=workflow.target, paths=paths)
+    ensure_target_venv(sync_plan)
+    print(f"Venv:   {sync_plan.venv_dir}")
+    print(f"Python: {sync_plan.python_exe}")
+
     _step("Prepare VTK build plan")
     build_plan = make_vtk_build_plan(
         target_name=workflow.target,
@@ -109,7 +115,6 @@ def run_windows_phase1_workflow(
     wheel_vtk(build_plan)
 
     _step("Sync target venv")
-    sync_plan = make_venv_sync_plan(target_name=workflow.target, paths=paths)
     sync_venv(sync_plan)
 
     if workflow.skip_validation:
