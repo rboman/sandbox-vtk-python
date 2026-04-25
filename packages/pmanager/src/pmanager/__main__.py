@@ -32,7 +32,7 @@ def _fallback(argv: list[str]) -> int:
 
     if argv in (["build", "vtk", "--help"], ["build", "vtk", "-h"]):
         print("Usage: pmanager build vtk [OPTIONS]")
-        print("Options include --configure and --build when Typer is installed.")
+        print("Options include --configure, --build, and --install when Typer is installed.")
         return 0
 
     if argv == ["build", "vtk"]:

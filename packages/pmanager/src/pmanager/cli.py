@@ -6,6 +6,7 @@ from pmanager.build import (
     BuildPlanError,
     build_vtk as run_vtk_build,
     configure_vtk as run_vtk_configure,
+    install_vtk as run_vtk_install,
     make_vtk_build_plan,
     print_vtk_build_plan,
 )
@@ -57,6 +58,7 @@ def build_vtk(
     parallel: int = typer.Option(0, help="Parallel build jobs. 0 means CPU count."),
     configure: bool = typer.Option(False, "--configure", help="Run the CMake configure step."),
     build: bool = typer.Option(False, "--build", help="Run the CMake build step."),
+    install: bool = typer.Option(False, "--install", help="Run the CMake install step."),
 ) -> None:
     try:
         plan = make_vtk_build_plan(
@@ -71,7 +73,7 @@ def build_vtk(
         typer.echo(f"build vtk failed: {exc}", err=True)
         raise typer.Exit(1) from exc
 
-    if not configure and not build:
+    if not configure and not build and not install:
         print_vtk_build_plan(plan)
         return
 
@@ -85,6 +87,10 @@ def build_vtk(
             typer.echo()
             typer.echo("Running VTK build step...")
             run_vtk_build(plan)
+        if install:
+            typer.echo()
+            typer.echo("Running VTK install step...")
+            run_vtk_install(plan)
     except (BuildPlanError, ProcessError) as exc:
         typer.echo(f"build vtk failed: {exc}", err=True)
         raise typer.Exit(1) from exc

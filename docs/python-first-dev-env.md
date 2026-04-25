@@ -43,6 +43,7 @@ The current goal is only to validate that:
 - `pmanager build vtk` can print a concrete CMake build plan;
 - `pmanager build vtk --configure` can run the CMake configure step;
 - `pmanager build vtk --build` can run the CMake build step after configuration;
+- `pmanager build vtk --install` can install the native SDK after a build;
 - the validation scripts are importable through `pmanager.validation`;
 - the new `pmanager validate ...` command group exists;
 - the unit tests pass without requiring a VTK build.
@@ -69,7 +70,7 @@ Implemented in this slice:
 
 Not implemented yet:
 
-- Python VTK install/wheel orchestration
+- Python VTK wheel orchestration
 - Python venv synchronization
 - Python Windows DLL staging
 - replacement of existing PowerShell/Bash scripts
@@ -183,7 +184,8 @@ This confirms that `pmanager` is reading the phase-1 targets from
 ## 5. Check the VTK fetch/build commands
 
 `pmanager fetch vtk` is implemented in Python. `pmanager build vtk` now prints
-a concrete build plan and can explicitly run the configure or build step.
+a concrete build plan and can explicitly run the configure, build, or install
+step.
 
 They must exist:
 
@@ -197,7 +199,7 @@ Expected result:
 - both commands show Typer help;
 - `fetch vtk` has `--url`, `--sha256`, and `--force` options;
 - `build vtk` has target/backend/generator/Python options;
-- `build vtk` has explicit `--configure` and `--build` switches.
+- `build vtk` has explicit `--configure`, `--build`, and `--install` switches.
 
 Print the Windows build plan without configuring or compiling:
 
@@ -287,7 +289,7 @@ python -m pytest -q tests\test_pmanager_build.py
 Expected result:
 
 ```text
-10 passed
+13 passed
 ```
 
 These tests do not configure or compile VTK. They also verify that the Python
@@ -393,9 +395,36 @@ pmanager build vtk --target win-amd64-msvc2022-py310-release --configure
 ```
 
 This command does not install the SDK and does not build the Python wheel yet.
-Those steps will be added later as explicit phases.
+Those steps are explicit separate phases.
 
-## 11. Check the validation commands
+## 11. Optional: install the VTK SDK
+
+After a successful build, install the native SDK tree:
+
+```bat
+pmanager build vtk --target win-amd64-msvc2022-py310-release --install
+```
+
+Expected behavior:
+
+- prints the build plan;
+- prints `Running VTK install step...`;
+- runs:
+
+```text
+cmake --install ...
+```
+
+Expected output directory:
+
+```text
+external\install\vtk-9.3.1\win-amd64-msvc2022-py310-release\sdk\
+```
+
+This installs the native SDK used later for C++ compilation. It does not install
+the Python `vtk` runtime into a venv and does not build the local wheel yet.
+
+## 12. Check the validation commands
 
 The old scripts under `scripts\validate\` still exist, but their logic now lives
 in importable modules under `pmanager.validation`.
@@ -426,7 +455,7 @@ The legacy script path should also still work:
 python scripts\validate\audit-environment.py --mode audit
 ```
 
-## 12. Run the unit tests
+## 13. Run the unit tests
 
 From the repository root:
 
@@ -444,7 +473,7 @@ python scripts\bootstrap-dev-env.py
 Expected result for this slice:
 
 ```text
-49 passed
+52 passed
 ```
 
 These tests do not require a VTK build. They cover:
@@ -458,10 +487,10 @@ These tests do not require a VTK build. They cover:
 - importable validation modules;
 - CLI availability for `pmanager validate ...`.
 - VTK fetch planning, checksum, safe extraction, and local-archive CLI behavior.
-- VTK build planning, CMake command construction, and explicit configure/build
-  command dispatch.
+- VTK build planning, CMake command construction, and explicit
+  configure/build/install command dispatch.
 
-## 13. Optional targeted tests
+## 14. Optional targeted tests
 
 Run only the new pmanager-related tests:
 
@@ -472,12 +501,12 @@ python -m pytest -q tests\test_bootstrap_dev_env.py tests\test_pmanager.py tests
 Expected result:
 
 ```text
-42 passed
+45 passed
 ```
 
 The exact number may increase as the Python orchestration grows.
 
-## 14. What not to test yet
+## 15. What not to test yet
 
 Do not expect these commands to replace existing scripts yet:
 
@@ -491,14 +520,15 @@ At this stage:
 - `pmanager fetch vtk` can fetch VTK sources, but does not install anything;
 - `pmanager build vtk --configure` can configure the CMake build tree;
 - `pmanager build vtk --build` can compile an already configured build tree;
+- `pmanager build vtk --install` can install the native SDK tree;
 - `pmanager build vtk` without phase switches prints a dry-run plan;
-- `pmanager build vtk` does not install the SDK or build the wheel yet;
+- `pmanager build vtk` does not build the wheel yet;
 - `pmanager sync venv` is not implemented yet.
 
 For real VTK work, continue using the validated scripts documented in
 `docs/windows-from-scratch.md`.
 
-## 15. Suggested development loop
+## 16. Suggested development loop
 
 When working on the next Python-first slice:
 
@@ -534,7 +564,7 @@ reinstalling in normal development.
 The VTK target venv remains separate. It should be managed later by `pmanager`,
 not used as the default development environment for `pmanager` itself.
 
-## 16. Rollback for this slice
+## 17. Rollback for this slice
 
 This slice is deliberately low risk.
 

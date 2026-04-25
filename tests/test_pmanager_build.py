@@ -8,6 +8,7 @@ from pmanager.build import (
     BuildPlanError,
     build_vtk,
     configure_vtk,
+    install_vtk,
     make_vtk_build_plan,
     resolve_build_choice,
 )
@@ -193,6 +194,53 @@ def test_build_vtk_refuses_missing_cmake_cache(tmp_path: Path) -> None:
         raise AssertionError("Expected missing CMake cache refusal")
 
 
+def test_install_vtk_runs_install_command(monkeypatch, tmp_path: Path) -> None:
+    paths = ProjectPaths(root=tmp_path)
+    target = "win-amd64-msvc2022-py310-release"
+    plan = make_vtk_build_plan(
+        target_name=target,
+        paths=paths,
+        python_exe=tmp_path / ".venvs" / target / "Scripts" / "python.exe",
+        requested_backend="vs",
+    )
+    plan.build_dir.mkdir(parents=True)
+    (plan.build_dir / "CMakeCache.txt").write_text(
+        "CMAKE_GENERATOR:INTERNAL=Visual Studio 17 2022\n",
+        encoding="utf-8",
+    )
+    calls: list[tuple[list[str], Path | None]] = []
+
+    def fake_run_command(command: list[str], *, cwd: Path | None = None) -> CommandResult:
+        calls.append((command, cwd))
+        return CommandResult(command=command, cwd=cwd, returncode=0)
+
+    monkeypatch.setattr("pmanager.build.run_command", fake_run_command)
+
+    result = install_vtk(plan)
+
+    assert result.command == plan.install_command
+    assert calls == [(plan.install_command, None)]
+
+
+def test_install_vtk_refuses_missing_cmake_cache(tmp_path: Path) -> None:
+    paths = ProjectPaths(root=tmp_path)
+    target = "win-amd64-msvc2022-py310-release"
+    plan = make_vtk_build_plan(
+        target_name=target,
+        paths=paths,
+        python_exe=tmp_path / ".venvs" / target / "Scripts" / "python.exe",
+        requested_backend="vs",
+    )
+
+    try:
+        install_vtk(plan)
+    except BuildPlanError as exc:
+        assert "CMake cache does not exist" in str(exc)
+        assert "before '--install'" in str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("Expected missing CMake cache refusal")
+
+
 def test_build_vtk_cli_runs_build_step(monkeypatch, tmp_path: Path) -> None:
     calls = []
     monkeypatch.setattr("pmanager.build.ProjectPaths.discover", lambda: ProjectPaths(root=tmp_path))
@@ -219,4 +267,33 @@ def test_build_vtk_cli_runs_build_step(monkeypatch, tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     assert "Running VTK build step" in result.stdout
+    assert len(calls) == 1
+
+
+def test_build_vtk_cli_runs_install_step(monkeypatch, tmp_path: Path) -> None:
+    calls = []
+    monkeypatch.setattr("pmanager.build.ProjectPaths.discover", lambda: ProjectPaths(root=tmp_path))
+
+    def fake_run_vtk_install(plan):
+        calls.append(plan)
+        return CommandResult(command=plan.install_command, cwd=None, returncode=0)
+
+    monkeypatch.setattr("pmanager.cli.run_vtk_install", fake_run_vtk_install)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "build",
+            "vtk",
+            "--target",
+            "win-amd64-msvc2022-py310-release",
+            "--backend",
+            "vs",
+            "--install",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Running VTK install step" in result.stdout
     assert len(calls) == 1

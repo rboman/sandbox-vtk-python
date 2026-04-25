@@ -249,11 +249,20 @@ def configure_vtk(plan: VtkBuildPlan) -> CommandResult:
     return run_command(plan.configure_command)
 
 
-def build_vtk(plan: VtkBuildPlan) -> CommandResult:
+def _ensure_configured_build_tree(plan: VtkBuildPlan, *, next_step: str) -> None:
     cache_path = plan.build_dir / "CMakeCache.txt"
     if not cache_path.exists():
         raise BuildPlanError(
             f"CMake cache does not exist: {cache_path}. "
-            "Run 'pmanager build vtk --configure' before '--build'."
+            f"Run 'pmanager build vtk --configure' before '{next_step}'."
         )
+
+
+def build_vtk(plan: VtkBuildPlan) -> CommandResult:
+    _ensure_configured_build_tree(plan, next_step="--build")
     return run_command(plan.build_command)
+
+
+def install_vtk(plan: VtkBuildPlan) -> CommandResult:
+    _ensure_configured_build_tree(plan, next_step="--install")
+    return run_command(plan.install_command)
