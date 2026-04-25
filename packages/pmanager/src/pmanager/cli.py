@@ -2,9 +2,16 @@ from __future__ import annotations
 
 import typer
 
-from pmanager.build import BuildPlanError, make_vtk_build_plan, print_vtk_build_plan
+from pmanager.build import (
+    BuildPlanError,
+    build_vtk as run_vtk_build,
+    configure_vtk as run_vtk_configure,
+    make_vtk_build_plan,
+    print_vtk_build_plan,
+)
 from pmanager.fetch import FetchError, fetch_vtk as fetch_vtk_source
 from pmanager.libraries import get_library
+from pmanager.process import ProcessError
 from pmanager.targets import iter_targets
 from pmanager.validation import audit_environment, import_order as import_order_validation
 from pmanager.validation import runtime_provenance as runtime_provenance_validation
@@ -48,7 +55,8 @@ def build_vtk(
     generator: str = typer.Option("", help="Explicit CMake generator."),
     architecture: str = typer.Option("x64", help="Windows Visual Studio architecture."),
     parallel: int = typer.Option(0, help="Parallel build jobs. 0 means CPU count."),
-    execute: bool = typer.Option(False, "--execute", help="Actually run the build. Not implemented yet."),
+    configure: bool = typer.Option(False, "--configure", help="Run the CMake configure step."),
+    build: bool = typer.Option(False, "--build", help="Run the CMake build step."),
 ) -> None:
     try:
         plan = make_vtk_build_plan(
@@ -63,11 +71,23 @@ def build_vtk(
         typer.echo(f"build vtk failed: {exc}", err=True)
         raise typer.Exit(1) from exc
 
-    print_vtk_build_plan(plan)
-    if execute:
-        typer.echo()
-        typer.echo("Executing the VTK build is not implemented in this tranche.", err=True)
-        raise typer.Exit(2)
+    if not configure and not build:
+        print_vtk_build_plan(plan)
+        return
+
+    try:
+        print_vtk_build_plan(plan)
+        if configure:
+            typer.echo()
+            typer.echo("Running VTK configure step...")
+            run_vtk_configure(plan)
+        if build:
+            typer.echo()
+            typer.echo("Running VTK build step...")
+            run_vtk_build(plan)
+    except (BuildPlanError, ProcessError) as exc:
+        typer.echo(f"build vtk failed: {exc}", err=True)
+        raise typer.Exit(1) from exc
 
 
 @validate_app.command("audit")

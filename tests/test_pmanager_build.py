@@ -4,10 +4,17 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
-from pmanager.build import BuildPlanError, make_vtk_build_plan, resolve_build_choice
+from pmanager.build import (
+    BuildPlanError,
+    build_vtk,
+    configure_vtk,
+    make_vtk_build_plan,
+    resolve_build_choice,
+)
 from pmanager.cli import app
 from pmanager.cmake import read_cmake_cache_generator
 from pmanager.paths import ProjectPaths
+from pmanager.process import CommandResult
 from pmanager.targets import get_target
 
 
@@ -75,7 +82,8 @@ def test_existing_generator_refuses_backend_switch(tmp_path: Path) -> None:
         raise AssertionError("Expected backend switch refusal")
 
 
-def test_build_vtk_cli_prints_dry_run_plan() -> None:
+def test_build_vtk_cli_prints_dry_run_plan(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr("pmanager.build.ProjectPaths.discover", lambda: ProjectPaths(root=tmp_path))
     runner = CliRunner()
     result = runner.invoke(
         app,
@@ -88,7 +96,112 @@ def test_build_vtk_cli_prints_dry_run_plan() -> None:
     assert "Visual Studio 17 2022" in result.stdout
 
 
-def test_build_vtk_execute_is_explicitly_not_implemented() -> None:
+def test_configure_vtk_runs_configure_command(monkeypatch, tmp_path: Path) -> None:
+    paths = ProjectPaths(root=tmp_path)
+    target = "win-amd64-msvc2022-py310-release"
+    plan = make_vtk_build_plan(
+        target_name=target,
+        paths=paths,
+        python_exe=tmp_path / ".venvs" / target / "Scripts" / "python.exe",
+        requested_backend="vs",
+    )
+    plan.source_dir.mkdir(parents=True)
+    calls: list[tuple[list[str], Path | None]] = []
+
+    def fake_run_command(command: list[str], *, cwd: Path | None = None) -> CommandResult:
+        calls.append((command, cwd))
+        return CommandResult(command=command, cwd=cwd, returncode=0)
+
+    monkeypatch.setattr("pmanager.build.run_command", fake_run_command)
+
+    result = configure_vtk(plan)
+
+    assert result.command == plan.configure_command
+    assert calls == [(plan.configure_command, None)]
+    assert plan.build_dir.exists()
+    assert plan.install_dir.exists()
+    assert plan.wheelhouse_dir.exists()
+
+
+def test_configure_vtk_refuses_windows_ninja_without_compiler(monkeypatch, tmp_path: Path) -> None:
+    paths = ProjectPaths(root=tmp_path)
+    target = "win-amd64-msvc2022-py310-release"
+    plan = make_vtk_build_plan(
+        target_name=target,
+        paths=paths,
+        python_exe=tmp_path / ".venvs" / target / "Scripts" / "python.exe",
+        requested_backend="ninja",
+    )
+    plan.source_dir.mkdir(parents=True)
+    monkeypatch.setattr("pmanager.build.shutil.which", lambda name: None)
+    monkeypatch.delenv("CC", raising=False)
+    monkeypatch.delenv("CXX", raising=False)
+
+    try:
+        configure_vtk(plan)
+    except BuildPlanError as exc:
+        assert "Ninja was selected" in str(exc)
+        assert "x64 Native Tools Command Prompt" in str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("Expected missing compiler refusal")
+
+
+def test_build_vtk_runs_build_command(monkeypatch, tmp_path: Path) -> None:
+    paths = ProjectPaths(root=tmp_path)
+    target = "win-amd64-msvc2022-py310-release"
+    plan = make_vtk_build_plan(
+        target_name=target,
+        paths=paths,
+        python_exe=tmp_path / ".venvs" / target / "Scripts" / "python.exe",
+        requested_backend="vs",
+    )
+    plan.build_dir.mkdir(parents=True)
+    (plan.build_dir / "CMakeCache.txt").write_text(
+        "CMAKE_GENERATOR:INTERNAL=Visual Studio 17 2022\n",
+        encoding="utf-8",
+    )
+    calls: list[tuple[list[str], Path | None]] = []
+
+    def fake_run_command(command: list[str], *, cwd: Path | None = None) -> CommandResult:
+        calls.append((command, cwd))
+        return CommandResult(command=command, cwd=cwd, returncode=0)
+
+    monkeypatch.setattr("pmanager.build.run_command", fake_run_command)
+
+    result = build_vtk(plan)
+
+    assert result.command == plan.build_command
+    assert calls == [(plan.build_command, None)]
+
+
+def test_build_vtk_refuses_missing_cmake_cache(tmp_path: Path) -> None:
+    paths = ProjectPaths(root=tmp_path)
+    target = "win-amd64-msvc2022-py310-release"
+    plan = make_vtk_build_plan(
+        target_name=target,
+        paths=paths,
+        python_exe=tmp_path / ".venvs" / target / "Scripts" / "python.exe",
+        requested_backend="vs",
+    )
+
+    try:
+        build_vtk(plan)
+    except BuildPlanError as exc:
+        assert "CMake cache does not exist" in str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("Expected missing CMake cache refusal")
+
+
+def test_build_vtk_cli_runs_build_step(monkeypatch, tmp_path: Path) -> None:
+    calls = []
+    monkeypatch.setattr("pmanager.build.ProjectPaths.discover", lambda: ProjectPaths(root=tmp_path))
+
+    def fake_run_vtk_build(plan):
+        calls.append(plan)
+        return CommandResult(command=plan.build_command, cwd=None, returncode=0)
+
+    monkeypatch.setattr("pmanager.cli.run_vtk_build", fake_run_vtk_build)
+
     runner = CliRunner()
     result = runner.invoke(
         app,
@@ -99,9 +212,10 @@ def test_build_vtk_execute_is_explicitly_not_implemented() -> None:
             "win-amd64-msvc2022-py310-release",
             "--backend",
             "vs",
-            "--execute",
+            "--build",
         ],
     )
 
-    assert result.exit_code == 2
-    assert "not implemented" in result.stderr
+    assert result.exit_code == 0
+    assert "Running VTK build step" in result.stdout
+    assert len(calls) == 1

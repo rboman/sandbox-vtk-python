@@ -8,6 +8,7 @@ from pathlib import Path
 from pmanager.cmake import generator_backend, read_cmake_cache_generator
 from pmanager.libraries import get_library
 from pmanager.paths import ProjectPaths
+from pmanager.process import CommandResult, format_command, run_command
 from pmanager.targets import Target, get_target
 
 
@@ -190,10 +191,6 @@ def make_vtk_build_plan(
     )
 
 
-def format_command(command: list[str]) -> str:
-    return " ".join(f'"{part}"' if " " in part else part for part in command)
-
-
 def print_vtk_build_plan(plan: VtkBuildPlan) -> None:
     print(f"Target:      {plan.target.name}")
     print(f"Source:      {plan.source_dir}")
@@ -217,3 +214,45 @@ def print_vtk_build_plan(plan: VtkBuildPlan) -> None:
     print("Wheel:")
     print(f"  cd {plan.build_dir}")
     print(f"  {format_command(plan.wheel_command)}")
+
+
+def _ensure_vtk_source_exists(plan: VtkBuildPlan) -> None:
+    if not plan.source_dir.exists():
+        raise BuildPlanError(
+            f"VTK source directory does not exist: {plan.source_dir}. "
+            "Run 'pmanager fetch vtk' first."
+        )
+
+
+def _ensure_compiler_environment(plan: VtkBuildPlan) -> None:
+    if plan.target.os_name != "win" or plan.build_choice.backend != "ninja":
+        return
+
+    if shutil.which("cl") or os.environ.get("CC") or os.environ.get("CXX"):
+        return
+
+    raise BuildPlanError(
+        "Ninja was selected, but no C/C++ compiler is visible in this cmd.exe session. "
+        "Open an 'x64 Native Tools Command Prompt for VS 2022', activate "
+        ".venvs\\pmanager-dev\\Scripts\\activate.bat, then rerun the same pmanager command. "
+        "Alternatively, force the Visual Studio generator with '--backend vs'."
+    )
+
+
+def configure_vtk(plan: VtkBuildPlan) -> CommandResult:
+    _ensure_vtk_source_exists(plan)
+    _ensure_compiler_environment(plan)
+    plan.build_dir.mkdir(parents=True, exist_ok=True)
+    plan.install_dir.mkdir(parents=True, exist_ok=True)
+    plan.wheelhouse_dir.mkdir(parents=True, exist_ok=True)
+    return run_command(plan.configure_command)
+
+
+def build_vtk(plan: VtkBuildPlan) -> CommandResult:
+    cache_path = plan.build_dir / "CMakeCache.txt"
+    if not cache_path.exists():
+        raise BuildPlanError(
+            f"CMake cache does not exist: {cache_path}. "
+            "Run 'pmanager build vtk --configure' before '--build'."
+        )
+    return run_command(plan.build_command)

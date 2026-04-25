@@ -31,8 +31,8 @@ and should manage target environments such as:
 ```
 
 It is intentionally narrower than `docs/windows-from-scratch.md`: it does **not**
-build VTK yet, does **not** replace the PowerShell/Bash build scripts, and does
-**not** migrate `sync-venv`.
+install VTK yet, does **not** replace the PowerShell/Bash build scripts, and
+does **not** migrate `sync-venv`.
 
 The current goal is only to validate that:
 
@@ -41,6 +41,8 @@ The current goal is only to validate that:
 - the phase-1 targets are exposed from Python code;
 - `pmanager fetch vtk` can fetch VTK source archives;
 - `pmanager build vtk` can print a concrete CMake build plan;
+- `pmanager build vtk --configure` can run the CMake configure step;
+- `pmanager build vtk --build` can run the CMake build step after configuration;
 - the validation scripts are importable through `pmanager.validation`;
 - the new `pmanager validate ...` command group exists;
 - the unit tests pass without requiring a VTK build.
@@ -58,7 +60,7 @@ Implemented in this slice:
 - `pmanager.fetch`
 - implemented CLI commands:
   - `pmanager fetch vtk`
-- build planning CLI commands:
+- build CLI commands:
   - `pmanager build vtk`
 - validation CLI commands:
   - `pmanager validate audit`
@@ -67,7 +69,7 @@ Implemented in this slice:
 
 Not implemented yet:
 
-- Python VTK build orchestration
+- Python VTK install/wheel orchestration
 - Python venv synchronization
 - Python Windows DLL staging
 - replacement of existing PowerShell/Bash scripts
@@ -181,7 +183,7 @@ This confirms that `pmanager` is reading the phase-1 targets from
 ## 5. Check the VTK fetch/build commands
 
 `pmanager fetch vtk` is implemented in Python. `pmanager build vtk` now prints
-a concrete build plan, but does not execute the long VTK build yet.
+a concrete build plan and can explicitly run the configure or build step.
 
 They must exist:
 
@@ -194,12 +196,13 @@ Expected result:
 
 - both commands show Typer help;
 - `fetch vtk` has `--url`, `--sha256`, and `--force` options;
-- `build vtk` has target/backend/generator/Python options.
+- `build vtk` has target/backend/generator/Python options;
+- `build vtk` has explicit `--configure` and `--build` switches.
 
-Print the Windows build plan without compiling:
+Print the Windows build plan without configuring or compiling:
 
 ```bat
-pmanager build vtk --target win-amd64-msvc2022-py310-release --backend vs
+pmanager build vtk --target win-amd64-msvc2022-py310-release
 ```
 
 Expected output includes:
@@ -212,6 +215,39 @@ SDK install: ...\external\install\vtk-9.3.1\win-amd64-msvc2022-py310-release\sdk
 Wheelhouse:  ...\external\wheelhouse\vtk-9.3.1\win-amd64-msvc2022-py310-release
 Configure:
   cmake ...
+```
+
+By default, `--backend auto` prefers Ninja when `ninja.exe` is available in
+`PATH`. If Ninja is not found on Windows, `pmanager` falls back to the Visual
+Studio generator.
+
+On Windows with Ninja, the current shell must still have access to the compiler
+toolchain used by CMake. In practice, start from:
+
+```text
+x64 Native Tools Command Prompt for VS 2022
+```
+
+Then go back to the repository and activate the pmanager venv:
+
+```bat
+cd /d D:\dev\VIBECODING\sandbox-vtk-python
+.venvs\pmanager-dev\Scripts\activate.bat
+```
+
+If `pmanager` selects Ninja but `cl.exe` is not visible, it stops before running
+CMake and asks you to use the Visual Studio developer `cmd.exe` prompt.
+
+To force Ninja explicitly:
+
+```bat
+pmanager build vtk --target win-amd64-msvc2022-py310-release --backend ninja
+```
+
+To force the Visual Studio generator explicitly:
+
+```bat
+pmanager build vtk --target win-amd64-msvc2022-py310-release --backend vs
 ```
 
 ## 6. Test VTK fetch logic without downloading VTK
@@ -243,10 +279,12 @@ python -m pytest -q tests\test_pmanager_build.py
 Expected result:
 
 ```text
-6 passed
+9 passed
 ```
 
-These tests do not configure or compile VTK.
+These tests do not configure or compile VTK. They also verify that the Python
+implementation can call the configure/build command runner without actually
+starting CMake during the test suite.
 
 ## 8. Optional: fetch the real VTK source archive
 
@@ -278,7 +316,78 @@ The Python fetch implementation:
 - rejects symlinks/hardlinks in tar archives;
 - moves the extracted source tree into place only after extraction succeeds.
 
-## 9. Check the validation commands
+## 9. Optional: configure VTK with CMake
+
+This step does not compile VTK. It only creates/configures the CMake build tree.
+
+With Ninja preferred automatically:
+
+```bat
+pmanager build vtk --target win-amd64-msvc2022-py310-release --configure
+```
+
+Or with Ninja forced explicitly:
+
+```bat
+pmanager build vtk --target win-amd64-msvc2022-py310-release --backend ninja --configure
+```
+
+Expected behavior:
+
+- prints the same build plan as the dry run;
+- prints `Running VTK configure step...`;
+- runs a `cmake -S ... -B ... -G Ninja ...` command if Ninja is selected;
+- creates or updates:
+
+```text
+external\build\vtk-9.3.1\win-amd64-msvc2022-py310-release\
+external\install\vtk-9.3.1\win-amd64-msvc2022-py310-release\sdk\
+external\wheelhouse\vtk-9.3.1\win-amd64-msvc2022-py310-release\
+```
+
+If the build directory already contains a `CMakeCache.txt` generated with a
+different backend, `pmanager` refuses to switch generator silently. Delete the
+build directory deliberately if you want to reconfigure from scratch.
+
+If CMake was interrupted or failed partway through configuration, it may leave a
+partial build directory behind. The simplest recovery is:
+
+```bat
+rmdir /s /q external\build\vtk-9.3.1\win-amd64-msvc2022-py310-release
+```
+
+Then rerun the configure command from the Visual Studio developer `cmd.exe`
+prompt.
+
+## 10. Optional: compile VTK
+
+This is the long step. Run it yourself when you are ready:
+
+```bat
+pmanager build vtk --target win-amd64-msvc2022-py310-release --build
+```
+
+Expected behavior:
+
+- prints the build plan;
+- prints `Running VTK build step...`;
+- runs:
+
+```text
+cmake --build ... --parallel ...
+```
+
+If the CMake build tree has not been configured yet, the command refuses with a
+message telling you to run:
+
+```bat
+pmanager build vtk --target win-amd64-msvc2022-py310-release --configure
+```
+
+This command does not install the SDK and does not build the Python wheel yet.
+Those steps will be added later as explicit phases.
+
+## 11. Check the validation commands
 
 The old scripts under `scripts\validate\` still exist, but their logic now lives
 in importable modules under `pmanager.validation`.
@@ -309,7 +418,7 @@ The legacy script path should also still work:
 python scripts\validate\audit-environment.py --mode audit
 ```
 
-## 10. Run the unit tests
+## 12. Run the unit tests
 
 From the repository root:
 
@@ -327,7 +436,7 @@ python scripts\bootstrap-dev-env.py
 Expected result for this slice:
 
 ```text
-41 passed
+49 passed
 ```
 
 These tests do not require a VTK build. They cover:
@@ -341,25 +450,26 @@ These tests do not require a VTK build. They cover:
 - importable validation modules;
 - CLI availability for `pmanager validate ...`.
 - VTK fetch planning, checksum, safe extraction, and local-archive CLI behavior.
-- VTK build planning and CMake command construction.
+- VTK build planning, CMake command construction, and explicit configure/build
+  command dispatch.
 
-## 11. Optional targeted tests
+## 13. Optional targeted tests
 
 Run only the new pmanager-related tests:
 
 ```bat
-python -m pytest -q tests\test_bootstrap_dev_env.py tests\test_pmanager.py tests\test_pmanager_environment.py tests\test_pmanager_validation_modules.py tests\test_pmanager_fetch.py tests\test_pmanager_build.py
+python -m pytest -q tests\test_bootstrap_dev_env.py tests\test_pmanager.py tests\test_pmanager_environment.py tests\test_pmanager_validation_modules.py tests\test_pmanager_fetch.py tests\test_pmanager_build.py tests\test_pmanager_process.py
 ```
 
 Expected result:
 
 ```text
-34 passed
+42 passed
 ```
 
 The exact number may increase as the Python orchestration grows.
 
-## 12. What not to test yet
+## 14. What not to test yet
 
 Do not expect these commands to replace existing scripts yet:
 
@@ -370,14 +480,17 @@ pmanager sync venv
 
 At this stage:
 
-- `pmanager fetch vtk` can fetch VTK sources, but does not build or install anything;
-- `pmanager build vtk` prints a build plan, but does not execute configure/build/install yet;
+- `pmanager fetch vtk` can fetch VTK sources, but does not install anything;
+- `pmanager build vtk --configure` can configure the CMake build tree;
+- `pmanager build vtk --build` can compile an already configured build tree;
+- `pmanager build vtk` without phase switches prints a dry-run plan;
+- `pmanager build vtk` does not install the SDK or build the wheel yet;
 - `pmanager sync venv` is not implemented yet.
 
 For real VTK work, continue using the validated scripts documented in
 `docs/windows-from-scratch.md`.
 
-## 13. Suggested development loop
+## 15. Suggested development loop
 
 When working on the next Python-first slice:
 
@@ -413,7 +526,7 @@ reinstalling in normal development.
 The VTK target venv remains separate. It should be managed later by `pmanager`,
 not used as the default development environment for `pmanager` itself.
 
-## 14. Rollback for this slice
+## 16. Rollback for this slice
 
 This slice is deliberately low risk.
 
@@ -425,6 +538,13 @@ It does not modify:
 - `scripts/ubuntu/build-vtk.sh`
 - `scripts/ubuntu/sync-venv.sh`
 - Windows DLL staging logic
+
+If you only ran `pmanager build vtk --configure`, rollback is simply deleting
+the configured build tree for this target:
+
+```bat
+rmdir /s /q external\build\vtk-9.3.1\win-amd64-msvc2022-py310-release
+```
 
 The validation scripts under `scripts\validate\` are modified, but only as thin
 wrappers around `pmanager.validation`. Their command-line behavior is intended
