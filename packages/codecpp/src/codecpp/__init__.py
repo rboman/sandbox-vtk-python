@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+"""Python entrypoint for codecpp.
+
+This file prepares runtime loading and exposes the SWIG-generated extension API.
+"""
+
 import importlib
 
 from ._runtime import describe_runtime, prepare_runtime
@@ -23,10 +28,12 @@ else:
 
 
 def extension_loaded() -> bool:
+    """Return True when the native SWIG module is available."""
     return _swig_module is not None
 
 
 def require_extension():
+    """Return native module or raise a diagnostic ImportError."""
     if _swig_module is None:
         details = describe_runtime(verbose=True)
         bootstrap_error = None

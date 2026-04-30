@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+"""Environment audit utility used by pmanager validation commands.
+
+This file reports unsafe variables and suspicious runtime path injections.
+"""
+
 import argparse
 import importlib.metadata
 import importlib.util
@@ -58,6 +63,7 @@ SUSPICIOUS_TOKENS = (
 
 
 def find_repo_root(start: Path | None = None) -> Path:
+    """Locate repository root using basic workspace markers."""
     current = (start or Path(__file__)).resolve()
     for candidate in (current, *current.parents):
         if (candidate / "README.md").exists() and (candidate / "packages").exists():
@@ -66,14 +72,17 @@ def find_repo_root(start: Path | None = None) -> Path:
 
 
 def normalize_path(value: str) -> str:
+    """Normalize path text for stable comparisons."""
     return str(Path(value).expanduser().resolve(strict=False))
 
 
 def split_paths(value: str) -> list[str]:
+    """Split a PATH-like string into non-empty entries."""
     return [part for part in value.split(os.pathsep) if part]
 
 
 def path_is_within(candidate: str | Path, root: str | Path | None) -> bool:
+    """Check whether candidate path is inside root path."""
     if not root:
         return False
     candidate_path = Path(candidate).resolve(strict=False)
@@ -86,6 +95,7 @@ def path_is_within(candidate: str | Path, root: str | Path | None) -> bool:
 
 
 def safe_prefixes(target_venv: str | None, repo_root: str) -> list[str]:
+    """Return path prefixes considered safe for environment audit."""
     prefixes = [normalize_path(repo_root)]
     if target_venv:
         prefixes.append(normalize_path(target_venv))
@@ -111,6 +121,7 @@ def classify_path_entry(
     target_venv: str | None,
     repo_root: str,
 ) -> tuple[str, str]:
+    """Classify one path entry as allowed, suspicious, or external."""
     normalized = normalize_path(entry)
     lowered = normalized.lower()
     safe_roots = safe_prefixes(target_venv, repo_root)
@@ -125,6 +136,7 @@ def classify_path_entry(
 
 
 def package_info(name: str) -> dict[str, str | None]:
+    """Return lightweight package metadata used by audit reports."""
     spec = importlib.util.find_spec(name)
     origin = None if spec is None else spec.origin
     version = None
@@ -137,6 +149,7 @@ def package_info(name: str) -> dict[str, str | None]:
 
 
 def inspect_environment(target_venv: str | None, target_sdk_root: str | None) -> dict[str, object]:
+    """Build a structured environment report for audit/strict modes."""
     repo_root = str(find_repo_root())
     suspicious_vars: dict[str, object] = {}
 
@@ -189,6 +202,7 @@ def inspect_environment(target_venv: str | None, target_sdk_root: str | None) ->
 
 
 def iter_violations(report: dict[str, object]) -> Iterable[str]:
+    """Yield human-readable violations from an environment report."""
     target_venv = report.get("target_venv")
     usersite = report["python"]["usersite"]  # type: ignore[index]
     vtk_info = report["packages"]["vtk"]  # type: ignore[index]
@@ -218,6 +232,7 @@ def iter_violations(report: dict[str, object]) -> Iterable[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """CLI entrypoint for audit-environment checks."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=("audit", "strict"), default="audit")
     parser.add_argument("--target-venv")

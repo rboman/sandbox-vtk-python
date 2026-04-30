@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 from __future__ import annotations
 
+"""Thin script wrapper for pmanager.validation.import_order.main."""
+
 import sys
 from pathlib import Path
 

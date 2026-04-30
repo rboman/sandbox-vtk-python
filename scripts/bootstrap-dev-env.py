@@ -1,6 +1,11 @@
 #!/usr/bin/env python
 from __future__ import annotations
 
+"""Bootstrap helper for the pmanager development virtual environment.
+
+This script creates/selects a tooling venv and installs pmanager editable.
+"""
+
 import argparse
 import os
 import shutil
@@ -33,16 +38,19 @@ DEFAULT_TOOL_VENV = "pmanager-dev"
 
 
 def repo_root() -> Path:
+    """Return repository root based on script location."""
     return Path(__file__).resolve().parents[1]
 
 
 def venv_python(venv_dir: Path) -> Path:
+    """Return Python executable path inside a venv."""
     if os.name == "nt":
         return venv_dir / "Scripts" / "python.exe"
     return venv_dir / "bin" / "python"
 
 
 def path_is_within(candidate: Path, root: Path) -> bool:
+    """Check whether candidate path stays under root path."""
     try:
         candidate.resolve(strict=False).relative_to(root.resolve(strict=False))
     except ValueError:
@@ -51,6 +59,7 @@ def path_is_within(candidate: Path, root: Path) -> bool:
 
 
 def ensure_not_recreating_active_venv(venv_dir: Path) -> None:
+    """Warn when running bootstrap from another active venv."""
     active_venv = os.environ.get("VIRTUAL_ENV")
     if not active_venv:
         return
@@ -65,6 +74,7 @@ def ensure_not_recreating_active_venv(venv_dir: Path) -> None:
 
 
 def remove_venv(venv_dir: Path, venvs_root: Path) -> None:
+    """Safely remove a venv under .venvs/."""
     resolved_venv = venv_dir.resolve(strict=False)
     resolved_root = venvs_root.resolve(strict=False)
     if not path_is_within(resolved_venv, resolved_root):
@@ -79,6 +89,7 @@ def remove_venv(venv_dir: Path, venvs_root: Path) -> None:
 
 
 def ensure_venv(venv_dir: Path) -> Path:
+    """Create venv if missing and return its Python executable."""
     python_path = venv_python(venv_dir)
     if not python_path.exists():
         builder = venv.EnvBuilder(with_pip=True)
@@ -90,12 +101,14 @@ def ensure_venv(venv_dir: Path) -> Path:
 
 
 def run(command: list[str]) -> None:
+    """Run a command and exit on non-zero return code."""
     completed = subprocess.run(command, check=False)
     if completed.returncode != 0:
         raise SystemExit(completed.returncode)
 
 
 def install_dev_tools(python_path: Path) -> None:
+    """Install basic tooling dependencies into the selected venv."""
     run(
         [
             str(python_path),
@@ -109,11 +122,13 @@ def install_dev_tools(python_path: Path) -> None:
 
 
 def install_pmanager_editable(python_path: Path, root: Path) -> None:
+    """Install local pmanager package in editable mode."""
     package_dir = root / "packages" / "pmanager"
     run([str(python_path), "-m", "pip", "install", "--upgrade", "-e", str(package_dir)])
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse bootstrap command-line options."""
     parser = argparse.ArgumentParser(
         description="Create/select the pmanager development venv and install pmanager editable."
     )
@@ -144,6 +159,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    """Run bootstrap flow and print selected venv details."""
     args = parse_args()
     root = repo_root()
     venv_name = args.target or args.venv_name

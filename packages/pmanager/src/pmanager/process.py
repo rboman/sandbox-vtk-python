@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+"""Small subprocess wrapper used by all build and sync routines.
+
+This file keeps command resolution, logging, and error formatting consistent.
+"""
+
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -8,21 +13,25 @@ from typing import Mapping
 
 
 class ProcessError(RuntimeError):
+    """Raised when an external command cannot be executed successfully."""
     pass
 
 
 @dataclass(frozen=True)
 class CommandResult:
+    """Minimal command execution result used by higher-level orchestration."""
     command: list[str]
     cwd: Path | None
     returncode: int
 
 
 def format_command(command: list[str]) -> str:
+    """Render a command list as a readable shell-like string."""
     return " ".join(f'"{part}"' if " " in part else part for part in command)
 
 
 def resolve_command(command: list[str]) -> list[str]:
+    """Resolve the executable path when command[0] is not absolute."""
     executable = command[0]
     if Path(executable).is_absolute() or "/" in executable or "\\" in executable:
         return command
@@ -39,6 +48,7 @@ def run_command(
     cwd: Path | None = None,
     env: Mapping[str, str] | None = None,
 ) -> CommandResult:
+    """Run one command, stream output, and raise on non-zero exit code."""
     if not command:
         raise ProcessError("Cannot run an empty command.")
 
@@ -60,6 +70,7 @@ def run_command_text(
     cwd: Path | None = None,
     env: Mapping[str, str] | None = None,
 ) -> str:
+    """Run one command and return captured stdout as text."""
     if not command:
         raise ProcessError("Cannot run an empty command.")
 

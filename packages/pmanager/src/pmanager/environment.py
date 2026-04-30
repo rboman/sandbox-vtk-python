@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+"""Environment hygiene helpers shared by build, sync, and validation flows.
+
+This file defines which variables are unsafe and how sanitized environments are built.
+"""
+
 import os
 import sys
 from pathlib import Path
@@ -38,10 +43,12 @@ PATH_FILTER_TOKENS = (
 
 
 def normalize_path(value: str | Path) -> Path:
+    """Return a normalized absolute path without requiring existence."""
     return Path(value).expanduser().resolve(strict=False)
 
 
 def path_is_within(candidate: str | Path, root: str | Path | None) -> bool:
+    """Check whether candidate path is inside root path."""
     if root is None:
         return False
     candidate_path = normalize_path(candidate)
@@ -54,6 +61,7 @@ def path_is_within(candidate: str | Path, root: str | Path | None) -> bool:
 
 
 def active_venv_is_target(env: Mapping[str, str], target_venv: str | Path) -> bool:
+    """Check whether VIRTUAL_ENV points to the expected target venv."""
     active = env.get("VIRTUAL_ENV")
     if not active:
         return False
@@ -65,6 +73,7 @@ def unsafe_variables(
     *,
     target_venv: str | Path | None = None,
 ) -> dict[str, str]:
+    """Collect unsafe environment variables currently set."""
     source = os.environ if env is None else env
     unsafe = {name: value for name in UNSAFE_ENV_VARS if (value := source.get(name))}
 
@@ -80,6 +89,7 @@ def sanitized_path(
     *,
     keep_system: bool = True,
 ) -> str:
+    """Build a filtered PATH that removes known risky entries."""
     source = os.environ if env is None else env
     entries: list[str] = []
 
@@ -108,10 +118,7 @@ def sanitized_path(
 
 
 def strict_sanitized_path(venv_bin_dir: str | Path | None = None) -> str:
-    """Create a strict whitelist PATH with only system directories and optional venv bin.
-    
-    This is used during venv sync to ensure audit passes regardless of system pollution.
-    """
+    """Build a whitelist PATH from target venv bin plus system directories."""
     entries: list[str] = []
     
     # Add venv bin first if provided
@@ -140,6 +147,7 @@ def clean_environment(
     target_venv: str | Path | None = None,
     base: Mapping[str, str] | None = None,
 ) -> dict[str, str]:
+    """Create a minimal, reproducible environment for workflow subprocesses."""
     source = os.environ if base is None else base
     clean: dict[str, str] = {}
 
@@ -164,6 +172,7 @@ def clean_environment(
 
 
 def running_inside(target_venv: str | Path) -> bool:
+    """Return True when current interpreter/session already uses target venv."""
     prefix_matches = normalize_path(sys.prefix) == normalize_path(target_venv)
     active_matches = active_venv_is_target(os.environ, target_venv)
     return prefix_matches or active_matches

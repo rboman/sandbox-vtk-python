@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+"""Target venv synchronization and runtime staging logic.
+
+This file installs the local VTK wheel, local packages, and runtime glue needed
+for consistent imports on each platform.
+"""
+
 import os
 import shutil
 import sys
@@ -15,11 +21,13 @@ from pmanager.targets import Target, get_target
 
 
 class SyncError(RuntimeError):
+    """Raised when venv synchronization preconditions are not satisfied."""
     pass
 
 
 @dataclass(frozen=True)
 class VenvSyncPlan:
+    """Resolved paths and inputs required to sync one target venv."""
     target: Target
     venv_dir: Path
     python_exe: Path
@@ -37,6 +45,7 @@ class VenvSyncPlan:
 
 
 def default_python_for_venv(venv_dir: Path, target: Target) -> Path:
+    """Return the default Python path for one target venv."""
     if target.os_name == "win":
         return venv_dir / "Scripts" / "python.exe"
     return venv_dir / "bin" / "python"
@@ -49,6 +58,7 @@ def make_venv_sync_plan(
     python_exe: str | None = None,
     constraints_file: str | Path | None = None,
 ) -> VenvSyncPlan:
+    """Create a complete synchronization plan for one target."""
     paths = paths or ProjectPaths.discover()
     target = get_target(target_name)
     library = get_library("vtk")
@@ -74,6 +84,7 @@ def make_venv_sync_plan(
 
 
 def target_command_env(plan: VenvSyncPlan) -> dict[str, str]:
+    """Build a strict, sanitized environment for sync and validation commands."""
     env = dict(os.environ)
     # Remove all unsafe variables that may point to system or user-installed libraries
     for name in UNSAFE_ENV_VARS:
@@ -89,6 +100,7 @@ def target_command_env(plan: VenvSyncPlan) -> dict[str, str]:
 
 
 def codecpp_build_env(plan: VenvSyncPlan) -> dict[str, str]:
+    """Build the environment used specifically to compile/install codecpp."""
     env = target_command_env(plan)
     vtk_cmake_dir = resolve_vtk_cmake_dir(plan)
     env["PATH"] = build_tool_path(env)
@@ -98,7 +110,7 @@ def codecpp_build_env(plan: VenvSyncPlan) -> dict[str, str]:
 
 
 def build_tool_path(env: Mapping[str, str]) -> str:
-    """Extend a sanitized PATH with externally installed build tools when required."""
+    """Extend a sanitized PATH with required build tools such as SWIG."""
     entries = [entry for entry in env.get("PATH", "").split(os.pathsep) if entry]
     existing = set(entries)
 
@@ -117,6 +129,7 @@ def build_tool_path(env: Mapping[str, str]) -> str:
 
 
 def resolve_vtk_cmake_dir(plan: VenvSyncPlan) -> Path:
+    """Locate VTK CMake package files in SDK or build directories."""
     candidates: list[Path] = [
         plan.sdk_dir / "lib" / "cmake" / "vtk-9.3",
         plan.sdk_dir,
@@ -145,6 +158,7 @@ def resolve_vtk_cmake_dir(plan: VenvSyncPlan) -> Path:
 
 
 def ensure_target_venv(plan: VenvSyncPlan) -> None:
+    """Create the target venv when it does not already exist."""
     if plan.python_exe.exists():
         return
     if running_inside(plan.venv_dir):
@@ -154,6 +168,7 @@ def ensure_target_venv(plan: VenvSyncPlan) -> None:
 
 
 def find_vtk_wheel(wheelhouse_dir: Path) -> Path:
+    """Return the newest VTK wheel from a target wheelhouse."""
     if not wheelhouse_dir.exists():
         raise SyncError(f"Wheelhouse does not exist: {wheelhouse_dir}")
     wheels = sorted(
@@ -167,6 +182,7 @@ def find_vtk_wheel(wheelhouse_dir: Path) -> Path:
 
 
 def installed_vtk_version(plan: VenvSyncPlan, env: Mapping[str, str]) -> str:
+    """Read the installed vtk package version from the target venv."""
     version = run_command_text(
         [
             str(plan.python_exe),
@@ -181,6 +197,7 @@ def installed_vtk_version(plan: VenvSyncPlan, env: Mapping[str, str]) -> str:
 
 
 def vtk_modules_dir(plan: VenvSyncPlan, env: Mapping[str, str]) -> Path:
+    """Locate vtkmodules directory in the target venv."""
     location = run_command_text(
         [
             str(plan.python_exe),
@@ -200,6 +217,7 @@ def vtk_modules_dir(plan: VenvSyncPlan, env: Mapping[str, str]) -> Path:
 
 
 def vtk_abi_suffix(vtk_version: str) -> str:
+    """Convert a VTK version string to its major.minor ABI suffix."""
     parts = vtk_version.split(".")
     if len(parts) < 2 or not parts[0].isdigit() or not parts[1].isdigit():
         raise SyncError(f"Unable to derive the VTK ABI suffix from version '{vtk_version}'.")
@@ -207,6 +225,7 @@ def vtk_abi_suffix(vtk_version: str) -> str:
 
 
 def find_qt_bin_dir(env: Mapping[str, str] | None = None) -> Path | None:
+    """Try to find a Qt runtime bin directory for VTK Qt modules on Windows."""
     source = os.environ if env is None else env
     candidates: list[Path] = []
     for name in ("QTDIR", "QT_DIR", "Qt5_DIR", "Qt6_DIR"):
@@ -224,6 +243,7 @@ def find_qt_bin_dir(env: Mapping[str, str] | None = None) -> Path | None:
 
 
 def write_vtk_build_paths(vtkmodules_dir: Path, additional_paths: list[Path]) -> Path:
+    """Write vtkmodules/_build_paths.py with extra runtime lookup directories."""
     existing = []
     for path in additional_paths:
         if path.exists():
@@ -243,6 +263,7 @@ def write_vtk_build_paths(vtkmodules_dir: Path, additional_paths: list[Path]) ->
 
 
 def stage_vtk_runtime_windows(plan: VenvSyncPlan, vtk_version: str, env: Mapping[str, str]) -> None:
+    """Copy VTK DLLs into target venv layout expected by vtkmodules on Windows."""
     if plan.target.os_name != "win":
         return
 
@@ -273,12 +294,14 @@ def stage_vtk_runtime_windows(plan: VenvSyncPlan, vtk_version: str, env: Mapping
 
 
 def write_vtk_constraint(plan: VenvSyncPlan, vtk_version: str) -> Path:
+    """Write a temporary constraints file pinning the exact installed VTK version."""
     plan.tmp_dir.mkdir(parents=True, exist_ok=True)
     plan.vtk_constraint_file.write_text(f"vtk==={vtk_version}\n", encoding="utf-8")
     return plan.vtk_constraint_file
 
 
 def sync_venv(plan: VenvSyncPlan, *, no_index: bool = False, install_local_packages: bool = True) -> None:
+    """Run full target venv synchronization for wheel, deps, and local packages."""
     ensure_target_venv(plan)
     if not plan.constraints_file.exists():
         raise SyncError(f"Constraints file does not exist: {plan.constraints_file}")

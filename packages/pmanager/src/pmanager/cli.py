@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+"""Typer command-line interface for pmanager.
+
+This file maps user commands to orchestration routines in the core modules.
+"""
+
 import typer
 
 from pmanager.build import (
@@ -30,6 +35,7 @@ workflow_app = typer.Typer(help="Run explicit multi-step workflows.")
 
 @app.command("targets")
 def list_targets() -> None:
+    """List all supported target names."""
     for target in iter_targets():
         typer.echo(target.name)
 
@@ -40,6 +46,7 @@ def fetch_vtk(
     sha256: str = typer.Option("", help="Expected SHA256 for the downloaded archive."),
     force: bool = typer.Option(False, help="Replace an existing VTK source tree."),
 ) -> None:
+    """Fetch VTK source archive into the repository source tree."""
     library = get_library("vtk")
     try:
         source_dir = fetch_vtk_source(
@@ -67,6 +74,7 @@ def build_vtk(
     install: bool = typer.Option(False, "--install", help="Run the CMake install step."),
     wheel: bool = typer.Option(False, "--wheel", help="Build the local Python vtk wheel."),
 ) -> None:
+    """Print or execute VTK build steps for one target."""
     try:
         plan = make_vtk_build_plan(
             target_name=target,
@@ -125,6 +133,7 @@ def sync_venv(
         help="Install vtk and pyvista only; skip codecpp/codepy/pmanager.",
     ),
 ) -> None:
+    """Synchronize a target venv with wheels, dependencies, and local packages."""
     try:
         plan = make_venv_sync_plan(
             target_name=target,
@@ -156,6 +165,7 @@ def workflow_windows(
     skip_fetch: bool = typer.Option(False, "--skip-fetch", help="Do not fetch VTK even if missing."),
     skip_validation: bool = typer.Option(False, "--skip-validation", help="Skip final runtime validation."),
 ) -> None:
+    """Run the full Windows workflow command."""
     try:
         run_windows_workflow_or_raise(
             WindowsWorkflow(
@@ -182,6 +192,7 @@ def workflow_linux(
     skip_fetch: bool = typer.Option(False, "--skip-fetch", help="Do not fetch VTK even if missing."),
     skip_validation: bool = typer.Option(False, "--skip-validation", help="Skip final runtime validation."),
 ) -> None:
+    """Run the full Linux workflow command."""
     try:
         run_linux_workflow_or_raise(
             LinuxWorkflow(
@@ -204,6 +215,7 @@ def validate_audit(
     target_sdk_root: str = typer.Option("", help="Target SDK root"),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON output."),
 ) -> None:
+    """Run environment audit validation wrapper."""
     args = ["--mode", mode]
     if target_venv:
         args.extend(["--target-venv", target_venv])
@@ -221,6 +233,7 @@ def validate_provenance(
     target_sdk_root: str = typer.Option("", help="Target SDK root"),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON output."),
 ) -> None:
+    """Run runtime provenance validation wrapper."""
     args: list[str] = []
     if modules:
         args.append("--modules")
@@ -240,6 +253,7 @@ def validate_import_order(
     require_extension: bool = typer.Option(False, help="Require the native extension."),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON output."),
 ) -> None:
+    """Run import-order validation wrapper."""
     args: list[str] = []
     for item in order or []:
         args.extend(["--order", item])
@@ -256,6 +270,7 @@ def audit_env(
     target_venv: str = typer.Option("", help="Target venv path"),
     target_sdk_root: str = typer.Option("", help="Target SDK root"),
 ) -> None:
+    """Backward-compatible alias for audit validation."""
     args = ["--mode", mode]
     if target_venv:
         args.extend(["--target-venv", target_venv])
@@ -269,6 +284,7 @@ def runtime_provenance(
     target_venv: str = typer.Option("", help="Target venv path"),
     target_sdk_root: str = typer.Option("", help="Target SDK root"),
 ) -> None:
+    """Backward-compatible alias for provenance validation."""
     args = []
     if target_venv:
         args.extend(["--target-venv", target_venv])
@@ -279,6 +295,7 @@ def runtime_provenance(
 
 @app.command("import-order")
 def import_order(require_extension: bool = typer.Option(False, help="Require the native extension.")) -> None:
+    """Backward-compatible alias for import-order validation."""
     args = ["--require-extension"] if require_extension else []
     raise typer.Exit(import_order_validation.main(args))
 

@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+"""CLI entrypoint with a small fallback mode when Typer is unavailable.
+
+The fallback keeps basic help and discovery commands usable in minimal setups.
+"""
+
 import sys
 
 
@@ -10,6 +15,7 @@ BASELINE_TARGETS = (
 
 
 def _fallback(argv: list[str]) -> int:
+    """Handle a minimal subset of commands without Typer dependency."""
     if not argv or argv in (["--help"], ["-h"]):
         print("Usage: pmanager [targets|fetch vtk|build vtk|sync venv|workflow windows|workflow linux] [--help]")
         return 0
@@ -59,6 +65,7 @@ def _fallback(argv: list[str]) -> int:
 
 
 def main() -> int:
+    """Run Typer app when possible, otherwise use fallback command handler."""
     try:
         from pmanager.cli import app
     except ModuleNotFoundError as exc:

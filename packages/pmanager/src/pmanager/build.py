@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+"""VTK build planning and execution helpers.
+
+This file translates a target into explicit configure/build/install/wheel commands.
+"""
+
 import os
 import shutil
 from dataclasses import dataclass
@@ -14,11 +19,13 @@ from pmanager.targets import Target, get_target
 
 
 class BuildPlanError(RuntimeError):
+    """Raised when build inputs or build state are not valid."""
     pass
 
 
 @dataclass(frozen=True)
 class BuildChoice:
+    """Selected backend/generator pair for one build tree."""
     backend: str
     generator: str
     ninja_path: str | None = None
@@ -27,6 +34,7 @@ class BuildChoice:
 
 @dataclass(frozen=True)
 class VtkBuildPlan:
+    """Fully resolved command plan for one VTK target build."""
     target: Target
     source_dir: Path
     build_dir: Path
@@ -59,6 +67,7 @@ VTK_CMAKE_OPTIONS = (
 
 
 def default_python_for_target(paths: ProjectPaths, target: Target) -> Path:
+    """Return the default target Python executable inside .venvs/<target>."""
     venv_dir = paths.venv_dir(target.name)
     if target.os_name == "win":
         return venv_dir / "Scripts" / "python.exe"
@@ -72,6 +81,7 @@ def resolve_build_choice(
     requested_backend: str = "auto",
     requested_generator: str | None = None,
 ) -> BuildChoice:
+    """Resolve backend and generator while protecting existing build trees."""
     existing_generator = read_cmake_cache_generator(build_dir)
 
     if requested_generator:
@@ -128,6 +138,7 @@ def make_vtk_build_plan(
     architecture: str = "x64",
     parallel: int | None = None,
 ) -> VtkBuildPlan:
+    """Build a complete, executable plan for VTK configure/build/install/wheel."""
     paths = paths or ProjectPaths.discover()
     target = get_target(target_name)
     library = get_library("vtk")
@@ -206,6 +217,7 @@ def make_vtk_build_plan(
 
 
 def print_vtk_build_plan(plan: VtkBuildPlan) -> None:
+    """Print a human-readable summary of the resolved build plan."""
     print(f"Target:      {plan.target.name}")
     print(f"Source:      {plan.source_dir}")
     print(f"Build:       {plan.build_dir}")
@@ -232,6 +244,7 @@ def print_vtk_build_plan(plan: VtkBuildPlan) -> None:
 
 
 def _ensure_vtk_source_exists(plan: VtkBuildPlan) -> None:
+    """Fail early when the VTK source tree is missing."""
     if not plan.source_dir.exists():
         raise BuildPlanError(
             f"VTK source directory does not exist: {plan.source_dir}. "
@@ -240,6 +253,7 @@ def _ensure_vtk_source_exists(plan: VtkBuildPlan) -> None:
 
 
 def _ensure_compiler_environment(plan: VtkBuildPlan) -> None:
+    """Check the shell provides a compiler when Ninja/MSVC is used on Windows."""
     if plan.target.os_name != "win" or plan.build_choice.backend != "ninja":
         return
 
@@ -256,6 +270,7 @@ def _ensure_compiler_environment(plan: VtkBuildPlan) -> None:
 
 
 def configure_vtk(plan: VtkBuildPlan, *, env: Mapping[str, str] | None = None) -> CommandResult:
+    """Run CMake configure for a prepared VTK build plan."""
     _ensure_vtk_source_exists(plan)
     _ensure_compiler_environment(plan)
     _ensure_python_exists(plan)
@@ -266,6 +281,7 @@ def configure_vtk(plan: VtkBuildPlan, *, env: Mapping[str, str] | None = None) -
 
 
 def _ensure_configured_build_tree(plan: VtkBuildPlan, *, next_step: str) -> None:
+    """Ensure CMake configure has already produced a cache file."""
     cache_path = plan.build_dir / "CMakeCache.txt"
     if not cache_path.exists():
         raise BuildPlanError(
@@ -275,11 +291,17 @@ def _ensure_configured_build_tree(plan: VtkBuildPlan, *, next_step: str) -> None
 
 
 def _ensure_python_exists(plan: VtkBuildPlan) -> None:
+    """Ensure the planned Python executable exists before invoking Python tools."""
     if not plan.python_exe.exists():
         raise BuildPlanError(f"Python executable does not exist: {plan.python_exe}")
 
 
 def _force_release_config_in_vtk_wheel_setup(plan: VtkBuildPlan, setup_py: Path) -> None:
+    """Patch generated wheel setup on VS builds to force Release config.
+
+    The generated setup.py may omit '--config Release' on Windows VS builds.
+    This tiny patch keeps wheel generation consistent with the build artifacts.
+    """
     if plan.build_choice.backend != "vs":
         return
 
@@ -297,16 +319,19 @@ def _force_release_config_in_vtk_wheel_setup(plan: VtkBuildPlan, setup_py: Path)
 
 
 def build_vtk(plan: VtkBuildPlan, *, env: Mapping[str, str] | None = None) -> CommandResult:
+    """Run the CMake build step for a configured tree."""
     _ensure_configured_build_tree(plan, next_step="--build")
     return run_command(plan.build_command, env=env)
 
 
 def install_vtk(plan: VtkBuildPlan, *, env: Mapping[str, str] | None = None) -> CommandResult:
+    """Run the CMake install step for a configured tree."""
     _ensure_configured_build_tree(plan, next_step="--install")
     return run_command(plan.install_command, env=env)
 
 
 def wheel_vtk(plan: VtkBuildPlan, *, env: Mapping[str, str] | None = None) -> CommandResult:
+    """Build the local VTK Python wheel from the configured build tree."""
     _ensure_configured_build_tree(plan, next_step="--wheel")
     _ensure_python_exists(plan)
     setup_py = plan.build_dir / "setup.py"

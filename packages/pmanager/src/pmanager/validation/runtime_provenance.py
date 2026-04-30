@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+"""Runtime provenance validation for vtk/codecpp related libraries.
+
+This file ensures native libraries are loaded from expected target locations.
+"""
+
 import argparse
 import ctypes
 import importlib
@@ -11,11 +16,13 @@ from pathlib import Path
 
 
 def module_origin(name: str) -> str | None:
+    """Return import origin path for one module, if any."""
     spec = importlib.util.find_spec(name)
     return None if spec is None else spec.origin
 
 
 def load_modules(module_names: list[str]) -> tuple[dict[str, str | None], dict[str, str]]:
+    """Import requested modules and collect origins and import errors."""
     origins: dict[str, str | None] = {}
     errors: dict[str, str] = {}
 
@@ -30,6 +37,7 @@ def load_modules(module_names: list[str]) -> tuple[dict[str, str | None], dict[s
 
 
 def loaded_native_libraries() -> list[str]:
+    """Return loaded native library paths for current process."""
     if sys.platform.startswith("linux"):
         libs = set()
         maps_path = Path("/proc/self/maps")
@@ -72,10 +80,12 @@ def loaded_native_libraries() -> list[str]:
 
 
 def normalize_path(value: str | Path) -> str:
+    """Normalize a path string for stable comparisons."""
     return str(Path(value).resolve(strict=False))
 
 
 def path_is_within(candidate: str | Path, root: str | Path | None) -> bool:
+    """Check whether candidate path is inside root path."""
     if not root:
         return False
     candidate_path = Path(candidate).resolve(strict=False)
@@ -93,6 +103,7 @@ def summarize_libraries(
     target_venv: str | None,
     target_sdk_root: str | None,
 ) -> dict[str, object]:
+    """Classify loaded vtk/codecpp libraries against target venv and SDK roots."""
     target_venv = None if not target_venv else normalize_path(target_venv)
     target_sdk_root = None if not target_sdk_root else normalize_path(target_sdk_root)
 
@@ -120,6 +131,7 @@ def summarize_libraries(
 
 
 def main(argv: list[str] | None = None) -> int:
+    """CLI entrypoint for runtime provenance checks."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--modules", nargs="*", default=["vtk", "pyvista", "codecpp"])
     parser.add_argument("--target-venv")

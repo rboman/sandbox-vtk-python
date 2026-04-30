@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+"""Target registry for supported platform/toolchain/python combinations.
+
+This file defines the canonical build/runtime targets exposed by pmanager.
+"""
+
 from dataclasses import dataclass
 from typing import Iterable
 
 
 @dataclass(frozen=True)
 class Target:
+    """Describe one build/runtime target used across workflows."""
     name: str
     os_name: str
     arch: str
@@ -15,6 +21,7 @@ class Target:
 
     @property
     def constraints_name(self) -> str:
+        """Return the constraints filename associated with this target."""
         return f"{self.python_tag}.txt"
 
 
@@ -39,14 +46,17 @@ BASELINE_TARGETS: dict[str, Target] = {
 
 
 def iter_targets() -> Iterable[Target]:
+    """Yield all registered targets."""
     return BASELINE_TARGETS.values()
 
 
 def target_names() -> tuple[str, ...]:
+    """Return all target names in registry order."""
     return tuple(BASELINE_TARGETS)
 
 
 def get_target(name: str) -> Target:
+    """Return one target or raise a helpful error."""
     try:
         return BASELINE_TARGETS[name]
     except KeyError as exc:

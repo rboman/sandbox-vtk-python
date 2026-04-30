@@ -82,6 +82,10 @@ When changing build/sync/workflow logic:
 3. update active docs outside `docs/legacy/`
 4. keep migration history in `docs/legacy/` only
 
+Documentation convention for Python code lives in:
+
+- `docs/code-documentation-style.md`
+
 ## Evolution direction
 
 - Keep VTK as the concrete baseline recipe

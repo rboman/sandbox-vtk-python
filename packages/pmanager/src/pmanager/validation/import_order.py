@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+"""Import-order validation utility.
+
+This file checks that codecpp and pyvista can be imported in both orders.
+"""
+
 import argparse
 import json
 import os
@@ -8,6 +13,7 @@ import sys
 
 
 def run_order(order: list[str], require_extension: bool) -> dict[str, object]:
+    """Execute one import order in a clean Python subprocess."""
     snippets = [
         "import importlib",
         *(f"importlib.import_module('{name}')" for name in order),
@@ -34,6 +40,7 @@ def run_order(order: list[str], require_extension: bool) -> dict[str, object]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """CLI entrypoint for import-order checks."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--order",

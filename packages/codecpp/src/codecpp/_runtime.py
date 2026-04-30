@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+"""Runtime bootstrap helpers for loading VTK/codecpp native dependencies.
+
+The goal is to make runtime loading deterministic inside the target venv.
+"""
+
 import importlib.util
 import os
 import sys
@@ -19,10 +24,12 @@ _UNSAFE_ENV_VARS = (
 
 
 def _inside_virtual_environment() -> bool:
+    """Return True when running inside any virtual environment."""
     return sys.prefix != sys.base_prefix or bool(os.environ.get("VIRTUAL_ENV"))
 
 
 def _vtkmodules_dir() -> Path | None:
+    """Locate the vtkmodules package directory in the active interpreter."""
     spec = importlib.util.find_spec("vtkmodules")
     if spec is None:
         return None
@@ -34,6 +41,7 @@ def _vtkmodules_dir() -> Path | None:
 
 
 def _iter_runtime_candidates(package_dir: Path) -> list[Path]:
+    """List candidate directories that may contain runtime native libraries."""
     site_packages = package_dir.parent
     candidates = [
         package_dir,
@@ -54,6 +62,7 @@ def _iter_runtime_candidates(package_dir: Path) -> list[Path]:
 
 
 def _environment_hints() -> dict[str, str]:
+    """Capture potentially unsafe environment variables for diagnostics."""
     hints = {}
     for name in _UNSAFE_ENV_VARS:
         value = os.environ.get(name)
@@ -63,6 +72,7 @@ def _environment_hints() -> dict[str, str]:
 
 
 def _collect_runtime_details() -> dict[str, object]:
+    """Collect detailed runtime state used by bootstrap diagnostics."""
     package_dir = _vtkmodules_dir()
     candidates = []
     dlls = []
@@ -87,6 +97,7 @@ def _collect_runtime_details() -> dict[str, object]:
 
 
 def describe_runtime(*, verbose: bool = False) -> dict[str, object]:
+    """Return concise or verbose runtime diagnostics."""
     details = _collect_runtime_details()
     if verbose:
         details["runtime_candidate_count"] = len(details["runtime_candidates"])
@@ -114,6 +125,7 @@ def describe_runtime(*, verbose: bool = False) -> dict[str, object]:
 
 
 def prepare_runtime(*, strict: bool = False) -> dict[str, object]:
+    """Prepare runtime loader search paths, mainly on Windows."""
     details = describe_runtime(verbose=True)
 
     if os.name != "nt":

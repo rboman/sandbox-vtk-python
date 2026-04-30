@@ -66,3 +66,4 @@ Inside a target venv:
 - `examples/README.md` for quick runtime checks
 - `docs/python-first-dev-env.md` for compact operational workflow
 - `docs/build-flow.md` for build/sync orchestration details
+- `docs/code-documentation-style.md` for the lightweight code doc convention

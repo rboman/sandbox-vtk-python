@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+"""Source fetch utilities for external libraries.
+
+This file currently implements a safe fetch flow for VTK archives.
+"""
+
 import hashlib
 import shutil
 import tarfile
@@ -14,11 +19,13 @@ from pmanager.paths import ProjectPaths
 
 
 class FetchError(RuntimeError):
+    """Raised when source download, checksum, or extraction fails."""
     pass
 
 
 @dataclass(frozen=True)
 class FetchPlan:
+    """Resolved fetch inputs and output paths for one library."""
     library: LibraryRecipe
     url: str
     archive_path: Path
@@ -28,10 +35,12 @@ class FetchPlan:
 
 
 def vtk_source_url(version: str) -> str:
+    """Return the default upstream archive URL for one VTK version."""
     return f"https://gitlab.kitware.com/vtk/vtk/-/archive/v{version}/vtk-v{version}.tar.gz?ref_type=tags"
 
 
 def archive_name_from_url(url: str, fallback: str) -> str:
+    """Extract a usable archive filename from URL path."""
     parsed = urlparse(url)
     name = Path(unquote(parsed.path)).name
     return name or fallback
@@ -43,6 +52,7 @@ def plan_fetch_vtk(
     url: str | None = None,
     sha256: str | None = None,
 ) -> FetchPlan:
+    """Create a complete fetch plan for the VTK recipe."""
     paths = paths or ProjectPaths.discover()
     library = get_library("vtk")
     source_url = url or vtk_source_url(library.version)
@@ -59,12 +69,14 @@ def plan_fetch_vtk(
 
 
 def download_file(url: str, destination: Path) -> None:
+    """Download one URL to destination path."""
     destination.parent.mkdir(parents=True, exist_ok=True)
     with urllib.request.urlopen(url) as response, destination.open("wb") as output:
         shutil.copyfileobj(response, output)
 
 
 def sha256_file(path: Path) -> str:
+    """Compute SHA256 digest for a file."""
     digest = hashlib.sha256()
     with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
@@ -73,6 +85,7 @@ def sha256_file(path: Path) -> str:
 
 
 def verify_sha256(path: Path, expected: str | None) -> None:
+    """Validate archive checksum when an expected digest is provided."""
     if not expected:
         return
     actual = sha256_file(path)
@@ -81,6 +94,7 @@ def verify_sha256(path: Path, expected: str | None) -> None:
 
 
 def _safe_member_path(destination: Path, member_name: str) -> Path:
+    """Validate one archive member path against path traversal attacks."""
     normalized = PurePosixPath(member_name.replace("\\", "/"))
     if normalized.is_absolute() or ".." in normalized.parts:
         raise FetchError(f"Unsafe archive member path: {member_name}")
@@ -95,6 +109,7 @@ def _safe_member_path(destination: Path, member_name: str) -> Path:
 
 
 def safe_extract_zip(archive_path: Path, destination: Path) -> None:
+    """Safely extract a zip archive after validating member paths."""
     with zipfile.ZipFile(archive_path) as archive:
         for info in archive.infolist():
             _safe_member_path(destination, info.filename)
@@ -102,6 +117,7 @@ def safe_extract_zip(archive_path: Path, destination: Path) -> None:
 
 
 def safe_extract_tar(archive_path: Path, destination: Path) -> None:
+    """Safely extract a tar archive while rejecting links and unsafe paths."""
     with tarfile.open(archive_path) as archive:
         for member in archive.getmembers():
             _safe_member_path(destination, member.name)
@@ -111,6 +127,7 @@ def safe_extract_tar(archive_path: Path, destination: Path) -> None:
 
 
 def safe_extract_archive(archive_path: Path, destination: Path) -> None:
+    """Extract a supported archive type with safety checks."""
     destination.mkdir(parents=True, exist_ok=True)
     suffixes = "".join(archive_path.suffixes).lower()
     if suffixes.endswith(".zip"):
@@ -123,6 +140,7 @@ def safe_extract_archive(archive_path: Path, destination: Path) -> None:
 
 
 def single_extracted_directory(extract_root: Path) -> Path:
+    """Return the single top-level extracted directory, or fail."""
     directories = [path for path in extract_root.iterdir() if path.is_dir()]
     if len(directories) != 1:
         raise FetchError(f"Expected exactly one extracted source directory under {extract_root}")
@@ -137,6 +155,7 @@ def fetch_vtk(
     force: bool = False,
     verbose: bool = False,
 ) -> Path:
+    """Fetch, verify, extract, and place the VTK source tree in external/src."""
     plan = plan_fetch_vtk(paths=paths, url=url, sha256=sha256)
 
     if plan.target_dir.exists() and not force:

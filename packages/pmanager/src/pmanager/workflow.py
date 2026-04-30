@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+"""High-level end-to-end workflows for Windows and Linux targets.
+
+This file chains fetch/build/sync/validate steps into one reproducible command.
+"""
+
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -21,11 +26,13 @@ from pmanager.sync import SyncError, ensure_target_venv, make_venv_sync_plan, sy
 
 
 class WorkflowError(RuntimeError):
+    """Raised when a workflow fails at any orchestrated step."""
     pass
 
 
 @dataclass(frozen=True)
 class WindowsWorkflow:
+    """User options for the Windows workflow entrypoint."""
     target: str
     backend: str
     generator: str | None
@@ -37,11 +44,13 @@ class WindowsWorkflow:
 
 
 def _step(title: str) -> None:
+    """Print a human-friendly workflow section header."""
     print()
     print(f"== {title} ==")
 
 
 def validate_target_runtime(sync_plan) -> list[CommandResult]:
+    """Run runtime provenance and import-order checks in target environment."""
     target_venv = str(sync_plan.venv_dir)
     sdk_root = str(sync_plan.sdk_dir)
     env = target_command_env(sync_plan)
@@ -79,6 +88,7 @@ def run_windows_workflow(
     *,
     paths: ProjectPaths | None = None,
 ) -> None:
+    """Execute the full Windows workflow from source fetch to validation."""
     paths = paths or ProjectPaths.discover()
     library = get_library("vtk")
     source_dir = paths.source_root / library.source_dir_name
@@ -139,6 +149,7 @@ def run_windows_workflow(
 
 
 def run_windows_workflow_or_raise(workflow: WindowsWorkflow) -> None:
+    """Run the Windows workflow and normalize errors to WorkflowError."""
     try:
         run_windows_workflow(workflow)
     except (BuildPlanError, FetchError, SyncError) as exc:
@@ -147,6 +158,7 @@ def run_windows_workflow_or_raise(workflow: WindowsWorkflow) -> None:
 
 @dataclass(frozen=True)
 class LinuxWorkflow:
+    """User options for the Linux workflow entrypoint."""
     target: str
     parallel: int | None
     force_fetch: bool
@@ -159,6 +171,7 @@ def run_linux_workflow(
     *,
     paths: ProjectPaths | None = None,
 ) -> None:
+    """Execute the full Linux workflow from source fetch to validation."""
     paths = paths or ProjectPaths.discover()
     library = get_library("vtk")
     source_dir = paths.source_root / library.source_dir_name
@@ -216,6 +229,7 @@ def run_linux_workflow(
 
 
 def run_linux_workflow_or_raise(workflow: LinuxWorkflow) -> None:
+    """Run the Linux workflow and normalize errors to WorkflowError."""
     try:
         run_linux_workflow(workflow)
     except (BuildPlanError, FetchError, SyncError) as exc:

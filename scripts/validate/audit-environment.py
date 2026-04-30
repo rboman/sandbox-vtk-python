@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 from __future__ import annotations
 
+"""Thin script wrapper for pmanager.validation.audit_environment.main."""
+
 import sys
 from pathlib import Path
 
