@@ -12,7 +12,7 @@ from pmanager.paths import ProjectPaths
 from pmanager.targets import get_target, target_names
 
 
-def test_targets_command_lists_phase1_targets() -> None:
+def test_targets_command_lists_baseline_targets() -> None:
     runner = CliRunner()
     result = runner.invoke(app, ["targets"])
     assert result.exit_code == 0
@@ -50,7 +50,7 @@ def test_validate_subcommand_help_exists() -> None:
         assert result.exit_code == 0
 
 
-def test_phase1_targets_are_explicit() -> None:
+def test_baseline_targets_are_explicit() -> None:
     assert target_names() == (
         "win-amd64-msvc2022-py310-release",
         "linux-x86_64-gcc-py312-release",

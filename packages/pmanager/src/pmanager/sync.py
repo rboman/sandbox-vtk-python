@@ -140,7 +140,7 @@ def resolve_vtk_cmake_dir(plan: VenvSyncPlan) -> Path:
     raise SyncError(
         "Unable to find VTK CMake package files (VTKConfig.cmake or vtk-config.cmake) "
         f"under SDK '{plan.sdk_dir}' or build tree '{plan.vtk_build_dir}'. "
-        "Run 'pmanager workflow windows-phase1 --backend vs --parallel <N>' or rerun install after configure/build."
+        "Run 'pmanager workflow windows --backend vs --parallel <N>' or rerun install after configure/build."
     )
 
 

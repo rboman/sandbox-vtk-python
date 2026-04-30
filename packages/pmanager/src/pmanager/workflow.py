@@ -25,7 +25,7 @@ class WorkflowError(RuntimeError):
 
 
 @dataclass(frozen=True)
-class WindowsPhase1Workflow:
+class WindowsWorkflow:
     target: str
     backend: str
     generator: str | None
@@ -74,8 +74,8 @@ def validate_target_runtime(sync_plan) -> list[CommandResult]:
     ]
 
 
-def run_windows_phase1_workflow(
-    workflow: WindowsPhase1Workflow,
+def run_windows_workflow(
+    workflow: WindowsWorkflow,
     *,
     paths: ProjectPaths | None = None,
 ) -> None:
@@ -138,15 +138,15 @@ def run_windows_phase1_workflow(
     validate_target_runtime(sync_plan)
 
 
-def run_windows_phase1_or_raise(workflow: WindowsPhase1Workflow) -> None:
+def run_windows_workflow_or_raise(workflow: WindowsWorkflow) -> None:
     try:
-        run_windows_phase1_workflow(workflow)
+        run_windows_workflow(workflow)
     except (BuildPlanError, FetchError, SyncError) as exc:
         raise WorkflowError(str(exc)) from exc
 
 
 @dataclass(frozen=True)
-class LinuxPhase1Workflow:
+class LinuxWorkflow:
     target: str
     parallel: int | None
     force_fetch: bool
@@ -154,8 +154,8 @@ class LinuxPhase1Workflow:
     skip_validation: bool
 
 
-def run_linux_phase1_workflow(
-    workflow: LinuxPhase1Workflow,
+def run_linux_workflow(
+    workflow: LinuxWorkflow,
     *,
     paths: ProjectPaths | None = None,
 ) -> None:
@@ -215,8 +215,8 @@ def run_linux_phase1_workflow(
     validate_target_runtime(sync_plan)
 
 
-def run_linux_phase1_or_raise(workflow: LinuxPhase1Workflow) -> None:
+def run_linux_workflow_or_raise(workflow: LinuxWorkflow) -> None:
     try:
-        run_linux_phase1_workflow(workflow)
+        run_linux_workflow(workflow)
     except (BuildPlanError, FetchError, SyncError) as exc:
         raise WorkflowError(str(exc)) from exc

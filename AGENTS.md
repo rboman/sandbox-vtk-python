@@ -1,27 +1,34 @@
 # AGENTS.md
 
-## Audience and scope
+## Document map
 
-This file targets AI agents that maintain the multi-platform build system and `pmanager`.
+| File | Audience | Purpose |
+| --- | --- | --- |
+| README.md | Package developers (`codecpp`, `codepy`) | How to use the current `pmanager` workflow |
+| AGENTS.md | AI build-system maintainers | How to change the multi-platform build system safely |
+
+## Scope
+
+This file is for AI agents maintaining build orchestration and `pmanager`.
 
 In scope:
 
 - fetch/build/install/wheel/sync/validate orchestration
 - environment sanitization and reproducibility
-- target modeling and platform behavior
-- documentation for build mechanics
+- target modeling and platform-specific build behavior
+- build-system documentation maintenance
 
 Out of scope:
 
-- feature development inside `codecpp` business logic
-- feature development inside `codepy` business logic
+- feature work inside `packages/codecpp` business logic
+- feature work inside `packages/codepy` business logic
 - application-level simulation behavior
 
-## System contract
+## System invariants
 
-1. Compile-time authority and runtime authority stay separate.
+1. Compile-time and runtime authority stay separate.
 2. Build inputs are explicit and target-specific.
-3. Runtime provenance always points to the target venv.
+3. Runtime provenance points to the target venv.
 4. Global shell state is untrusted.
 
 Compile-time authority:
@@ -43,7 +50,7 @@ Runtime authority:
 
 ## Build-system responsibilities
 
-`pmanager` is the primary orchestrator and owns:
+`pmanager` owns:
 
 - source fetch
 - cmake configure/build/install
@@ -53,24 +60,22 @@ Runtime authority:
 
 ## Safety rules for AI changes
 
-- Never introduce hidden dependence on global `VTK_DIR`, `CMAKE_PREFIX_PATH`, `PYTHONPATH`, `LD_LIBRARY_PATH`, or SDK `bin` directories.
-- Keep path construction target-specific and inspectable.
-- Keep workflow steps runnable independently for debugging.
-- Keep Windows and Linux parity in command design and docs.
+- Never introduce hidden dependency on global `VTK_DIR`, `CMAKE_PREFIX_PATH`, `PYTHONPATH`, `LD_LIBRARY_PATH`, or SDK `bin` directories.
+- Keep paths target-specific and inspectable.
+- Keep workflow steps runnable independently.
+- Keep Windows/Linux parity in command behavior and docs.
 - Prefer small, reversible changes with tests.
 
-## Validation requirements
-
-Any change to build/sync/workflow logic keeps these checks green:
+## Required checks after workflow/build changes
 
 1. `pmanager validate audit --mode strict`
 2. `pmanager validate provenance`
 3. `pmanager validate import-order --require-extension`
-4. unit tests under `tests/`
+4. `pytest tests/`
 
 ## Change policy
 
-When updating the build system:
+When changing build/sync/workflow logic:
 
 1. update code
 2. update tests
@@ -79,6 +84,6 @@ When updating the build system:
 
 ## Evolution direction
 
-- keep VTK as the concrete baseline recipe
-- add new external libraries only after preserving current invariants
-- keep shell scripts thin wrappers around Python orchestration
+- Keep VTK as the concrete baseline recipe
+- Add new external library recipes only after preserving current invariants
+- Keep shell scripts as thin wrappers around Python orchestration

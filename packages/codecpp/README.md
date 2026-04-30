@@ -1,18 +1,17 @@
 # codecpp
 
-Native C++ + SWIG package that compiles against the repo-managed VTK SDK and resolves VTK at Python runtime from the active venv.
+Native C++ + SWIG package built against the repo-managed VTK SDK and loaded against VTK from the active target venv.
 
-## Phase-1 packaging rules
+## Packaging rules
 
-- build backend: `scikit-build-core`
-- native build system: CMake
+- backend: `scikit-build-core`
+- native build: CMake
 - binding tool: SWIG
-- development install: non-editable
+- install mode in target venv: non-editable
 
 ## Runtime rule
 
-`codecpp` must not rely on the SDK install tree at Python runtime.
+`codecpp` does not use SDK runtime paths.
 
-On Windows, `codecpp/__init__.py` bootstraps DLL lookup through `os.add_dll_directory(...)`.
-
-On Linux, `_codecpp.so` carries a `RUNPATH` that points at the venv-installed VTK wheel layout.
+- Windows: `codecpp/__init__.py` configures DLL lookup via `os.add_dll_directory(...)`
+- Linux: `_codecpp.so` uses RUNPATH entries for the venv-installed wheel layout

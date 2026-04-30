@@ -18,7 +18,7 @@ class Target:
         return f"{self.python_tag}.txt"
 
 
-PHASE1_TARGETS: dict[str, Target] = {
+BASELINE_TARGETS: dict[str, Target] = {
     "win-amd64-msvc2022-py310-release": Target(
         name="win-amd64-msvc2022-py310-release",
         os_name="win",
@@ -39,16 +39,16 @@ PHASE1_TARGETS: dict[str, Target] = {
 
 
 def iter_targets() -> Iterable[Target]:
-    return PHASE1_TARGETS.values()
+    return BASELINE_TARGETS.values()
 
 
 def target_names() -> tuple[str, ...]:
-    return tuple(PHASE1_TARGETS)
+    return tuple(BASELINE_TARGETS)
 
 
 def get_target(name: str) -> Target:
     try:
-        return PHASE1_TARGETS[name]
+        return BASELINE_TARGETS[name]
     except KeyError as exc:
         known = ", ".join(target_names())
         raise ValueError(f"Unknown target '{name}'. Known targets: {known}") from exc

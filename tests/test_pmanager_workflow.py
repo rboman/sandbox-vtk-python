@@ -7,10 +7,10 @@ from typer.testing import CliRunner
 from pmanager.cli import app
 from pmanager.paths import ProjectPaths
 from pmanager.process import CommandResult
-from pmanager.workflow import WindowsPhase1Workflow, run_windows_phase1_workflow
+from pmanager.workflow import WindowsWorkflow, run_windows_workflow
 
 
-def test_windows_phase1_workflow_runs_steps_in_order(monkeypatch, tmp_path: Path) -> None:
+def test_windows_workflow_runs_steps_in_order(monkeypatch, tmp_path: Path) -> None:
     calls: list[str] = []
     target = "win-amd64-msvc2022-py310-release"
     paths = ProjectPaths(root=tmp_path)
@@ -29,8 +29,8 @@ def test_windows_phase1_workflow_runs_steps_in_order(monkeypatch, tmp_path: Path
     monkeypatch.setattr("pmanager.workflow.sync_venv", record("sync"))
     monkeypatch.setattr("pmanager.workflow.validate_target_runtime", record("validate"))
 
-    run_windows_phase1_workflow(
-        WindowsPhase1Workflow(
+    run_windows_workflow(
+        WindowsWorkflow(
             target=target,
             backend="vs",
             generator=None,
@@ -46,7 +46,7 @@ def test_windows_phase1_workflow_runs_steps_in_order(monkeypatch, tmp_path: Path
     assert calls == ["fetch", "venv", "configure", "build", "install", "wheel", "sync", "validate"]
 
 
-def test_windows_phase1_workflow_skips_existing_source_and_validation(
+def test_windows_workflow_skips_existing_source_and_validation(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
@@ -64,8 +64,8 @@ def test_windows_phase1_workflow_skips_existing_source_and_validation(
     monkeypatch.setattr("pmanager.workflow.sync_venv", lambda *args, **kwargs: calls.append("sync"))
     monkeypatch.setattr("pmanager.workflow.validate_target_runtime", lambda *args, **kwargs: calls.append("validate"))
 
-    run_windows_phase1_workflow(
-        WindowsPhase1Workflow(
+    run_windows_workflow(
+        WindowsWorkflow(
             target=target,
             backend="vs",
             generator=None,
@@ -108,24 +108,24 @@ def test_validate_target_runtime_uses_target_python(monkeypatch, tmp_path: Path)
     assert calls[0][1]["PYTHONNOUSERSITE"] == "1"
 
 
-def test_workflow_windows_phase1_help_exists() -> None:
+def test_workflow_windows_help_exists() -> None:
     runner = CliRunner()
-    result = runner.invoke(app, ["workflow", "windows-phase1", "--help"])
+    result = runner.invoke(app, ["workflow", "windows", "--help"])
 
     assert result.exit_code == 0
     assert "--skip-fetch" in result.stdout
     assert "--skip-validation" in result.stdout
 
 
-def test_workflow_windows_phase1_cli_invokes_workflow(monkeypatch) -> None:
+def test_workflow_windows_cli_invokes_workflow(monkeypatch) -> None:
     calls = []
 
     def fake_run(workflow):
         calls.append(workflow)
 
-    monkeypatch.setattr("pmanager.cli.run_windows_phase1_or_raise", fake_run)
+    monkeypatch.setattr("pmanager.cli.run_windows_workflow_or_raise", fake_run)
     runner = CliRunner()
-    result = runner.invoke(app, ["workflow", "windows-phase1", "--backend", "vs", "--skip-validation"])
+    result = runner.invoke(app, ["workflow", "windows", "--backend", "vs", "--skip-validation"])
 
     assert result.exit_code == 0
     assert calls[0].backend == "vs"

@@ -1,10 +1,8 @@
 # tests
 
-The automated tests focus on repository logic that should work even before a real VTK build exists locally:
+Tests cover repository behavior that must stay stable across platforms:
 
-- environment audit classification
-- runtime bootstrap path discovery
+- environment audit logic
+- runtime bootstrap and provenance checks
 - CLI surface and target conventions
-- runtime provenance summarization logic
-
-The first true end-to-end VTK validation will happen once the local SDK and wheel flows are exercised on the supported targets.
+- sync/build/workflow orchestration behavior

@@ -1,4 +1,2 @@
-# Phase-1 Ubuntu 24.04 baseline.
-# The exact vtk version is injected dynamically by sync-venv from the local wheel
-# that was actually built for the target. The PyVista pin remains explicit.
+# Ubuntu baseline constraints.
 pyvista==0.44.2

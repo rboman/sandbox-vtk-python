@@ -1,28 +1,17 @@
-# AI handoff
+# AI Handoff
 
 Last updated: 2026-04-30
 
-## Active state
+## Current operational state
 
-The repository runs a Python-first multi-platform build orchestration through
-`pmanager`.
+`pmanager` provides Python-first multi-platform orchestration.
 
-Supported workflows:
+Primary workflow commands:
 
-- `pmanager workflow windows-phase1`
-- `pmanager workflow linux-phase1`
+- `pmanager workflow windows`
+- `pmanager workflow linux`
 
-Both workflows execute:
-
-1. fetch
-2. configure
-3. build
-4. install SDK
-5. build wheel
-6. sync target venv
-7. validate provenance and import order
-
-## Architecture invariants
+## Invariants
 
 Compile-time authority:
 
@@ -36,35 +25,17 @@ Runtime authority:
 .venvs/<target>/.../site-packages/
 ```
 
-Runtime validation requirement:
+Validation must keep passing:
 
-- VTK-related libraries resolve from the target venv
-- SDK tree is compile-time only
-
-## Current command set
-
-```text
-pmanager fetch vtk
-pmanager build vtk --configure
-pmanager build vtk --build
-pmanager build vtk --install
-pmanager build vtk --wheel
-pmanager sync venv
-pmanager validate audit --mode strict
-pmanager validate provenance
-pmanager validate import-order --require-extension
-pmanager workflow windows-phase1
-pmanager workflow linux-phase1
-```
+- `pmanager validate audit --mode strict`
+- `pmanager validate provenance`
+- `pmanager validate import-order --require-extension`
 
 ## Guidance for next AI session
 
-Focus on build-system and orchestration changes only:
+Focus on build-system changes only:
 
-- keep environment sanitization strict
+- keep strict environment sanitization
 - preserve Windows/Linux parity
-- keep docs outside `docs/legacy/` aligned with current behavior
-- update tests with every workflow/build/sync change
-
-Do not treat this file as a migration log. Keep it as a compact operational
-snapshot plus near-term build-system direction.
+- update tests with workflow/build/sync changes
+- keep active docs concise and behavior-focused

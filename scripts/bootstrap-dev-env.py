@@ -18,7 +18,7 @@ DEV_REQUIREMENTS = (
     "pytest",
 )
 
-PHASE1_TARGETS = {
+BASELINE_TARGETS = {
     "win-amd64-msvc2022-py310-release": {
         "platform": "win32",
         "python": "py310",
@@ -119,7 +119,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--target",
-        choices=sorted(PHASE1_TARGETS),
+        choices=sorted(BASELINE_TARGETS),
         help=(
             "Deprecated transition option: prepare .venvs/<target> instead of "
             f".venvs/{DEFAULT_TOOL_VENV}."

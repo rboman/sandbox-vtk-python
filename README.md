@@ -1,35 +1,34 @@
 # sandbox-vtk-python
 
-Sandbox multi-plateforme pour un workflow C++/Python autour de VTK 9.3.1.
+Cross-platform VTK sandbox for a mixed C++/Python stack.
 
-## Public visé
+## Document map
 
-Ce README s'adresse aux développeurs applicatifs des packages `codecpp` et `codepy`.
-Il explique comment utiliser `pmanager` tel qu'il fonctionne actuellement.
+| File | Audience | Purpose |
+| --- | --- | --- |
+| README.md | Package developers (`codecpp`, `codepy`) | Daily usage of `pmanager` and package development workflow |
+| AGENTS.md | AI build-system maintainers | Build orchestration rules, invariants, and change policy |
 
-La documentation orientée maintenance du système de build est dans [AGENTS.md](AGENTS.md).
+## What this repository provides
 
-## Ce que fournit le repository
+- Target-specific VTK SDK builds for native compilation
+- Target-specific local `vtk` wheels for Python runtime
+- Target virtual environments under `.venvs/<target>/`
+- Python-first orchestration through `pmanager`
 
-- un build VTK local par cible (`external/build/...`)
-- un SDK natif VTK par cible (`external/install/.../sdk`)
-- un wheel Python local `vtk` par cible (`external/wheelhouse/...`)
-- des environnements virtuels cibles (`.venvs/<target>/`)
-- une orchestration Python-first via `pmanager`
-
-## Cibles supportées
+## Supported targets
 
 - `win-amd64-msvc2022-py310-release`
 - `linux-x86_64-gcc-py312-release`
 
-## Démarrage rapide
+## Quick start
 
 ### Windows (`cmd.exe`)
 
 ```bat
 python scripts\bootstrap-dev-env.py
 .venvs\pmanager-dev\Scripts\activate.bat
-pmanager workflow windows-phase1
+pmanager workflow windows
 ```
 
 ### Linux
@@ -37,10 +36,10 @@ pmanager workflow windows-phase1
 ```bash
 python scripts/bootstrap-dev-env.py
 source .venvs/pmanager-dev/bin/activate
-pmanager workflow linux-phase1
+pmanager workflow linux
 ```
 
-## Commandes utiles pour les développeurs `codecpp` / `codepy`
+## Daily commands
 
 ```text
 pmanager fetch vtk
@@ -49,29 +48,21 @@ pmanager build vtk --build
 pmanager build vtk --install
 pmanager build vtk --wheel
 pmanager sync venv
+pmanager validate audit --mode strict
 pmanager validate provenance
 pmanager validate import-order --require-extension
 ```
 
-## Contrat runtime
+## Runtime contract for package developers
 
-Dans un venv cible:
+Inside a target venv:
 
-- `vtk`, `pyvista` et `codecpp` partagent le meme runtime VTK
-- les bibliotheques VTK chargees proviennent du venv cible
-- le SDK natif reste une autorite de compilation, pas une autorite runtime Python
+- `vtk`, `pyvista`, and `codecpp` resolve to one coherent VTK runtime
+- VTK runtime libraries are loaded from the target venv
+- `external/install/.../sdk` remains compile-time only
 
-## Pour développer les packages
+## Where to go next
 
-- `packages/codecpp`: extension C++/SWIG qui compile contre le SDK VTK de la cible
-- `packages/codepy`: package Python qui utilise `pyvista` dans le meme venv cible
-
-Utiliser les exemples de [examples/README.md](examples/README.md) pour verifier les imports croises.
-
-## Documentation
-
-- [docs/python-first-dev-env.md](docs/python-first-dev-env.md): usage quotidien de `pmanager`
-- [docs/build-flow.md](docs/build-flow.md): flux build/sync/validate
-- [docs/runtime-model.md](docs/runtime-model.md): regles runtime
-- [docs/environment-hygiene.md](docs/environment-hygiene.md): hygiene d'environnement
-- [docs/validation-matrix.md](docs/validation-matrix.md): verifications attendues
+- `examples/README.md` for quick runtime checks
+- `docs/python-first-dev-env.md` for compact operational workflow
+- `docs/build-flow.md` for build/sync orchestration details

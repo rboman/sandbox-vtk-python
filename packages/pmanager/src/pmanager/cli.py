@@ -18,8 +18,8 @@ from pmanager.sync import SyncError, ensure_target_venv, make_venv_sync_plan, sy
 from pmanager.targets import iter_targets
 from pmanager.validation import audit_environment, import_order as import_order_validation
 from pmanager.validation import runtime_provenance as runtime_provenance_validation
-from pmanager.workflow import WorkflowError, WindowsPhase1Workflow, run_windows_phase1_or_raise
-from pmanager.workflow import LinuxPhase1Workflow, run_linux_phase1_or_raise
+from pmanager.workflow import WorkflowError, WindowsWorkflow, run_windows_workflow_or_raise
+from pmanager.workflow import LinuxWorkflow, run_linux_workflow_or_raise
 
 app = typer.Typer(help="Sandbox VTK / Python workflow helper.")
 fetch_app = typer.Typer(help="Fetch external library sources.")
@@ -145,9 +145,9 @@ def sync_venv(
         raise typer.Exit(1) from exc
 
 
-@workflow_app.command("windows-phase1")
-def workflow_windows_phase1(
-    target: str = typer.Option("win-amd64-msvc2022-py310-release", help="Windows phase-1 target."),
+@workflow_app.command("windows")
+def workflow_windows(
+    target: str = typer.Option("win-amd64-msvc2022-py310-release", help="Windows target."),
     backend: str = typer.Option("auto", help="Build backend: auto, ninja, or vs."),
     generator: str = typer.Option("", help="Explicit CMake generator."),
     architecture: str = typer.Option("x64", help="Windows Visual Studio architecture."),
@@ -157,8 +157,8 @@ def workflow_windows_phase1(
     skip_validation: bool = typer.Option(False, "--skip-validation", help="Skip final runtime validation."),
 ) -> None:
     try:
-        run_windows_phase1_or_raise(
-            WindowsPhase1Workflow(
+        run_windows_workflow_or_raise(
+            WindowsWorkflow(
                 target=target,
                 backend=backend,
                 generator=generator or None,
@@ -170,21 +170,21 @@ def workflow_windows_phase1(
             )
         )
     except (WorkflowError, ProcessError, ValueError) as exc:
-        typer.echo(f"workflow windows-phase1 failed: {exc}", err=True)
+        typer.echo(f"workflow windows failed: {exc}", err=True)
         raise typer.Exit(1) from exc
 
 
-@workflow_app.command("linux-phase1")
-def workflow_linux_phase1(
-    target: str = typer.Option("linux-x86_64-gcc-py312-release", help="Linux phase-1 target."),
+@workflow_app.command("linux")
+def workflow_linux(
+    target: str = typer.Option("linux-x86_64-gcc-py312-release", help="Linux target."),
     parallel: int = typer.Option(0, help="Parallel build jobs. 0 means CPU count."),
     force_fetch: bool = typer.Option(False, "--force-fetch", help="Replace the existing VTK source tree."),
     skip_fetch: bool = typer.Option(False, "--skip-fetch", help="Do not fetch VTK even if missing."),
     skip_validation: bool = typer.Option(False, "--skip-validation", help="Skip final runtime validation."),
 ) -> None:
     try:
-        run_linux_phase1_or_raise(
-            LinuxPhase1Workflow(
+        run_linux_workflow_or_raise(
+            LinuxWorkflow(
                 target=target,
                 parallel=parallel if parallel > 0 else None,
                 force_fetch=force_fetch,
@@ -193,7 +193,7 @@ def workflow_linux_phase1(
             )
         )
     except (WorkflowError, ProcessError, ValueError) as exc:
-        typer.echo(f"workflow linux-phase1 failed: {exc}", err=True)
+        typer.echo(f"workflow linux failed: {exc}", err=True)
         raise typer.Exit(1) from exc
 
 

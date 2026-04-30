@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 
 
-PHASE1_TARGETS = (
+BASELINE_TARGETS = (
     "win-amd64-msvc2022-py310-release",
     "linux-x86_64-gcc-py312-release",
 )
@@ -11,11 +11,11 @@ PHASE1_TARGETS = (
 
 def _fallback(argv: list[str]) -> int:
     if not argv or argv in (["--help"], ["-h"]):
-        print("Usage: pmanager [targets|fetch vtk|build vtk|sync venv|workflow windows-phase1] [--help]")
+        print("Usage: pmanager [targets|fetch vtk|build vtk|sync venv|workflow windows|workflow linux] [--help]")
         return 0
 
     if argv == ["targets"]:
-        for target in PHASE1_TARGETS:
+        for target in BASELINE_TARGETS:
             print(target)
         return 0
 
@@ -46,8 +46,12 @@ def _fallback(argv: list[str]) -> int:
         print("Usage: pmanager sync venv [OPTIONS]")
         return 0
 
-    if argv in (["workflow", "windows-phase1", "--help"], ["workflow", "windows-phase1", "-h"]):
-        print("Usage: pmanager workflow windows-phase1 [OPTIONS]")
+    if argv in (["workflow", "windows", "--help"], ["workflow", "windows", "-h"]):
+        print("Usage: pmanager workflow windows [OPTIONS]")
+        return 0
+
+    if argv in (["workflow", "linux", "--help"], ["workflow", "linux", "-h"]):
+        print("Usage: pmanager workflow linux [OPTIONS]")
         return 0
 
     print(f"Unsupported fallback command: {' '.join(argv)}", file=sys.stderr)
