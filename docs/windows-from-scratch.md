@@ -27,6 +27,24 @@ The goal is to validate, from scratch, that:
 - `codecpp` and `pyvista` import in both orders in one process
 - runtime DLLs resolve from the venv, not from the SDK tree
 
+## Quick VS dev-shell shortcut in VS Code terminal
+
+To activate MSVC tools in the current integrated terminal (no new external window):
+
+In `cmd.exe`:
+
+```bat
+call scripts\windows\vsdev.cmd
+```
+
+In PowerShell:
+
+```powershell
+.\scripts\windows\vsdev.ps1
+```
+
+Then run your Ninja workflow command in the same terminal.
+
 ## Python-first quick path
 
 From a Visual Studio developer `cmd.exe` prompt:
