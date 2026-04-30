@@ -85,24 +85,27 @@ def test_validate_target_runtime_uses_target_python(monkeypatch, tmp_path: Path)
     from pmanager.sync import make_venv_sync_plan
     from pmanager.workflow import validate_target_runtime
 
-    calls: list[list[str]] = []
+    calls: list[tuple[list[str], dict[str, str] | None]] = []
     plan = make_venv_sync_plan(
         target_name="win-amd64-msvc2022-py310-release",
         paths=ProjectPaths(root=tmp_path),
     )
 
-    def fake_run_command(command):
-        calls.append(command)
+    def fake_run_command(command, *, env=None):
+        calls.append((command, env))
         return CommandResult(command=command, cwd=None, returncode=0)
 
     monkeypatch.setattr("pmanager.workflow.run_command", fake_run_command)
 
     validate_target_runtime(plan)
 
-    assert calls[0][:4] == [str(plan.python_exe), "-m", "pmanager", "validate"]
-    assert calls[0][4] == "provenance"
-    assert calls[1][:4] == [str(plan.python_exe), "-m", "pmanager", "validate"]
-    assert calls[1][4] == "import-order"
+    assert calls[0][0][:4] == [str(plan.python_exe), "-m", "pmanager", "validate"]
+    assert calls[0][0][4] == "provenance"
+    assert calls[1][0][:4] == [str(plan.python_exe), "-m", "pmanager", "validate"]
+    assert calls[1][0][4] == "import-order"
+    assert calls[0][1] is not None
+    assert calls[0][1]["VIRTUAL_ENV"] == str(plan.venv_dir)
+    assert calls[0][1]["PYTHONNOUSERSITE"] == "1"
 
 
 def test_workflow_windows_phase1_help_exists() -> None:

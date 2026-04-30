@@ -12,11 +12,12 @@ from pmanager.build import (
     print_vtk_build_plan,
     wheel_vtk,
 )
+from pmanager.environment import clean_environment
 from pmanager.fetch import FetchError, fetch_vtk
 from pmanager.libraries import get_library
 from pmanager.paths import ProjectPaths
 from pmanager.process import CommandResult, run_command
-from pmanager.sync import SyncError, ensure_target_venv, make_venv_sync_plan, sync_venv
+from pmanager.sync import SyncError, ensure_target_venv, make_venv_sync_plan, sync_venv, target_command_env
 
 
 class WorkflowError(RuntimeError):
@@ -43,6 +44,7 @@ def _step(title: str) -> None:
 def validate_target_runtime(sync_plan) -> list[CommandResult]:
     target_venv = str(sync_plan.venv_dir)
     sdk_root = str(sync_plan.sdk_dir)
+    env = target_command_env(sync_plan)
     return [
         run_command(
             [
@@ -55,7 +57,8 @@ def validate_target_runtime(sync_plan) -> list[CommandResult]:
                 target_venv,
                 "--target-sdk-root",
                 sdk_root,
-            ]
+            ],
+            env=env,
         ),
         run_command(
             [
@@ -65,7 +68,8 @@ def validate_target_runtime(sync_plan) -> list[CommandResult]:
                 "validate",
                 "import-order",
                 "--require-extension",
-            ]
+            ],
+            env=env,
         ),
     ]
 
@@ -78,6 +82,12 @@ def run_windows_phase1_workflow(
     paths = paths or ProjectPaths.discover()
     library = get_library("vtk")
     source_dir = paths.source_root / library.source_dir_name
+
+    # Create a clean environment for the workflow
+    clean_env = clean_environment(
+        repo_root=paths.root,
+        target=workflow.target,
+    )
 
     if workflow.skip_fetch:
         _step("Fetch VTK source: skipped")
@@ -94,6 +104,9 @@ def run_windows_phase1_workflow(
     print(f"Venv:   {sync_plan.venv_dir}")
     print(f"Python: {sync_plan.python_exe}")
 
+    # Update clean environment with target venv info
+    clean_env["VIRTUAL_ENV"] = str(sync_plan.venv_dir)
+
     _step("Prepare VTK build plan")
     build_plan = make_vtk_build_plan(
         target_name=workflow.target,
@@ -106,13 +119,13 @@ def run_windows_phase1_workflow(
     print_vtk_build_plan(build_plan)
 
     _step("Configure VTK")
-    configure_vtk(build_plan)
+    configure_vtk(build_plan, env=clean_env)
     _step("Build VTK")
-    build_vtk(build_plan)
+    build_vtk(build_plan, env=clean_env)
     _step("Install VTK SDK")
-    install_vtk(build_plan)
+    install_vtk(build_plan, env=clean_env)
     _step("Build VTK Python wheel")
-    wheel_vtk(build_plan)
+    wheel_vtk(build_plan, env=clean_env)
 
     _step("Sync target venv")
     sync_venv(sync_plan)
@@ -150,6 +163,12 @@ def run_linux_phase1_workflow(
     library = get_library("vtk")
     source_dir = paths.source_root / library.source_dir_name
 
+    # Create a clean environment for the workflow
+    clean_env = clean_environment(
+        repo_root=paths.root,
+        target=workflow.target,
+    )
+
     if workflow.skip_fetch:
         _step("Fetch VTK source: skipped")
     elif source_dir.exists() and not workflow.force_fetch:
@@ -165,6 +184,9 @@ def run_linux_phase1_workflow(
     print(f"Venv:   {sync_plan.venv_dir}")
     print(f"Python: {sync_plan.python_exe}")
 
+    # Update clean environment with target venv info
+    clean_env["VIRTUAL_ENV"] = str(sync_plan.venv_dir)
+
     _step("Prepare VTK build plan")
     build_plan = make_vtk_build_plan(
         target_name=workflow.target,
@@ -174,13 +196,13 @@ def run_linux_phase1_workflow(
     print_vtk_build_plan(build_plan)
 
     _step("Configure VTK")
-    configure_vtk(build_plan)
+    configure_vtk(build_plan, env=clean_env)
     _step("Build VTK")
-    build_vtk(build_plan)
+    build_vtk(build_plan, env=clean_env)
     _step("Install VTK SDK")
-    install_vtk(build_plan)
+    install_vtk(build_plan, env=clean_env)
     _step("Build VTK Python wheel")
-    wheel_vtk(build_plan)
+    wheel_vtk(build_plan, env=clean_env)
 
     _step("Sync target venv")
     sync_venv(sync_plan)

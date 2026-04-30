@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
 
-from pmanager.environment import PATH_FILTER_TOKENS, running_inside
+from pmanager.environment import PATH_FILTER_TOKENS, UNSAFE_ENV_VARS, running_inside, strict_sanitized_path
 from pmanager.libraries import get_library
 from pmanager.paths import ProjectPaths
 from pmanager.process import CommandResult, run_command, run_command_text
@@ -75,27 +75,13 @@ def make_venv_sync_plan(
 
 def target_command_env(plan: VenvSyncPlan) -> dict[str, str]:
     env = dict(os.environ)
-    for name in (
-        "PYTHONPATH",
-        "PYTHONHOME",
-        "PYTHONSTARTUP",
-        "PIP_INDEX_URL",
-        "PIP_EXTRA_INDEX_URL",
-        "PIP_FIND_LINKS",
-        "PIP_CONSTRAINT",
-        "PIP_REQUIRE_VIRTUALENV",
-        "VTK_DIR",
-        "CMAKE_PREFIX_PATH",
-    ):
+    # Remove all unsafe variables that may point to system or user-installed libraries
+    for name in UNSAFE_ENV_VARS:
         env.pop(name, None)
 
+    # Use strict whitelist PATH for venv sync to ensure clean audit
     scripts_dir = plan.python_exe.parent
-    path_entries = [
-        entry
-        for entry in env.get("PATH", "").split(os.pathsep)
-        if entry and not any(token in entry.lower() for token in PATH_FILTER_TOKENS)
-    ]
-    env["PATH"] = os.pathsep.join([str(scripts_dir), *path_entries])
+    env["PATH"] = strict_sanitized_path(venv_bin_dir=scripts_dir)
     env["VIRTUAL_ENV"] = str(plan.venv_dir)
     env["PYTHONNOUSERSITE"] = "1"
     env["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
@@ -105,9 +91,29 @@ def target_command_env(plan: VenvSyncPlan) -> dict[str, str]:
 def codecpp_build_env(plan: VenvSyncPlan) -> dict[str, str]:
     env = target_command_env(plan)
     vtk_cmake_dir = resolve_vtk_cmake_dir(plan)
+    env["PATH"] = build_tool_path(env)
     env["VTK_DIR"] = str(vtk_cmake_dir)
     env["CMAKE_PREFIX_PATH"] = os.pathsep.join([str(vtk_cmake_dir), str(plan.sdk_dir), str(plan.vtk_build_dir)])
     return env
+
+
+def build_tool_path(env: Mapping[str, str]) -> str:
+    """Extend a sanitized PATH with externally installed build tools when required."""
+    entries = [entry for entry in env.get("PATH", "").split(os.pathsep) if entry]
+    existing = set(entries)
+
+    # Some systems install SWIG outside standard system PATH entries (for example /opt/swig/bin).
+    # Add only the executable parent directory, not broad runtime/library locations.
+    for executable in ("swig",):
+        resolved = shutil.which(executable)
+        if not resolved:
+            continue
+        parent = str(Path(resolved).parent)
+        if parent not in existing:
+            entries.append(parent)
+            existing.add(parent)
+
+    return os.pathsep.join(entries)
 
 
 def resolve_vtk_cmake_dir(plan: VenvSyncPlan) -> Path:

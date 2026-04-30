@@ -89,6 +89,21 @@ def test_codecpp_build_env_sets_vtk_dir_and_prefix(monkeypatch, tmp_path: Path) 
     assert env["CMAKE_PREFIX_PATH"] == os.pathsep.join([str(resolved), str(plan.sdk_dir), str(plan.vtk_build_dir)])
 
 
+def test_codecpp_build_env_adds_swig_parent_dir(monkeypatch, tmp_path: Path) -> None:
+    plan = make_venv_sync_plan(
+        target_name="linux-x86_64-gcc-py312-release",
+        paths=ProjectPaths(root=tmp_path),
+    )
+    resolved = tmp_path / "external" / "build" / "vtk-9.3.1" / plan.target.name
+    monkeypatch.setattr("pmanager.sync.resolve_vtk_cmake_dir", lambda _: resolved)
+    monkeypatch.setattr("pmanager.sync.strict_sanitized_path", lambda venv_bin_dir=None: "/usr/bin:/bin")
+    monkeypatch.setattr("pmanager.sync.shutil.which", lambda executable: "/opt/swig/bin/swig" if executable == "swig" else None)
+
+    env = codecpp_build_env(plan)
+
+    assert "/opt/swig/bin" in env["PATH"]
+
+
 def test_find_vtk_wheel_selects_newest(tmp_path: Path) -> None:
     wheelhouse = tmp_path / "wheelhouse"
     wheelhouse.mkdir()
@@ -149,10 +164,12 @@ def test_target_command_env_uses_target_venv(monkeypatch, tmp_path: Path) -> Non
     assert env["VIRTUAL_ENV"] == str(plan.venv_dir)
     assert env["PYTHONNOUSERSITE"] == "1"
     assert "PYTHONPATH" not in env
+    # Verify that suspicious entries are removed by strict whitelist
     assert str(tmp_path / ".venvs" / "pmanager-dev") not in env["PATH"]
     assert r"C:\local\VTK-9.3.1\bin" not in env["PATH"]
     assert r"C:\Python310\Lib\site-packages" not in env["PATH"]
-    assert r"C:\tools" in env["PATH"]
+    assert r"C:\tools" not in env["PATH"]  # Arbitrary paths are also filtered
+    # But venv and system dirs are present
     assert str(plan.python_exe.parent) in env["PATH"]
 
 

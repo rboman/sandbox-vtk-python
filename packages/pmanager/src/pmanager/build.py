@@ -4,6 +4,7 @@ import os
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Mapping
 
 from pmanager.cmake import generator_backend, read_cmake_cache_generator
 from pmanager.libraries import get_library
@@ -254,14 +255,14 @@ def _ensure_compiler_environment(plan: VtkBuildPlan) -> None:
     )
 
 
-def configure_vtk(plan: VtkBuildPlan) -> CommandResult:
+def configure_vtk(plan: VtkBuildPlan, *, env: Mapping[str, str] | None = None) -> CommandResult:
     _ensure_vtk_source_exists(plan)
     _ensure_compiler_environment(plan)
     _ensure_python_exists(plan)
     plan.build_dir.mkdir(parents=True, exist_ok=True)
     plan.install_dir.mkdir(parents=True, exist_ok=True)
     plan.wheelhouse_dir.mkdir(parents=True, exist_ok=True)
-    return run_command(plan.configure_command)
+    return run_command(plan.configure_command, env=env)
 
 
 def _ensure_configured_build_tree(plan: VtkBuildPlan, *, next_step: str) -> None:
@@ -295,17 +296,17 @@ def _force_release_config_in_vtk_wheel_setup(plan: VtkBuildPlan, setup_py: Path)
     setup_py.write_text(text.replace(needle, replacement), encoding="utf-8")
 
 
-def build_vtk(plan: VtkBuildPlan) -> CommandResult:
+def build_vtk(plan: VtkBuildPlan, *, env: Mapping[str, str] | None = None) -> CommandResult:
     _ensure_configured_build_tree(plan, next_step="--build")
-    return run_command(plan.build_command)
+    return run_command(plan.build_command, env=env)
 
 
-def install_vtk(plan: VtkBuildPlan) -> CommandResult:
+def install_vtk(plan: VtkBuildPlan, *, env: Mapping[str, str] | None = None) -> CommandResult:
     _ensure_configured_build_tree(plan, next_step="--install")
-    return run_command(plan.install_command)
+    return run_command(plan.install_command, env=env)
 
 
-def wheel_vtk(plan: VtkBuildPlan) -> CommandResult:
+def wheel_vtk(plan: VtkBuildPlan, *, env: Mapping[str, str] | None = None) -> CommandResult:
     _ensure_configured_build_tree(plan, next_step="--wheel")
     _ensure_python_exists(plan)
     setup_py = plan.build_dir / "setup.py"
@@ -318,5 +319,5 @@ def wheel_vtk(plan: VtkBuildPlan) -> CommandResult:
     _force_release_config_in_vtk_wheel_setup(plan, setup_py)
 
     plan.wheelhouse_dir.mkdir(parents=True, exist_ok=True)
-    run_command(plan.wheel_tools_command)
-    return run_command(plan.wheel_command, cwd=plan.build_dir)
+    run_command(plan.wheel_tools_command, env=env)
+    return run_command(plan.wheel_command, cwd=plan.build_dir, env=env)

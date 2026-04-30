@@ -107,6 +107,32 @@ def sanitized_path(
     return os.pathsep.join(entries)
 
 
+def strict_sanitized_path(venv_bin_dir: str | Path | None = None) -> str:
+    """Create a strict whitelist PATH with only system directories and optional venv bin.
+    
+    This is used during venv sync to ensure audit passes regardless of system pollution.
+    """
+    entries: list[str] = []
+    
+    # Add venv bin first if provided
+    if venv_bin_dir:
+        entries.append(str(venv_bin_dir))
+    
+    # Add only known-safe system directories
+    if os.name == "nt":
+        system_root = os.environ.get("SystemRoot", r"C:\Windows")
+        for entry in (
+            Path(system_root) / "System32",
+            Path(system_root) / "System32" / "WindowsPowerShell" / "v1.0",
+            Path(system_root),
+        ):
+            entries.append(str(entry))
+    else:
+        entries.extend(["/usr/local/sbin", "/usr/local/bin", "/usr/sbin", "/usr/bin", "/sbin", "/bin"])
+    
+    return os.pathsep.join(entries)
+
+
 def clean_environment(
     *,
     repo_root: str | Path,
@@ -120,6 +146,10 @@ def clean_environment(
     for name in ("SystemRoot", "ComSpec", "WINDIR", "HOME", "USER", "LOGNAME", "SHELL", "TERM", "LANG"):
         if value := source.get(name):
             clean[name] = value
+
+    # Remove unsafe variables that may point to system or user-installed VTK or other libraries
+    for name in UNSAFE_ENV_VARS:
+        clean.pop(name, None)
 
     clean["PATH"] = sanitized_path(source)
     clean["PYTHONNOUSERSITE"] = "1"

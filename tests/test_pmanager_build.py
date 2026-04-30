@@ -119,7 +119,7 @@ def test_configure_vtk_runs_configure_command(monkeypatch, tmp_path: Path) -> No
     plan.source_dir.mkdir(parents=True)
     calls: list[tuple[list[str], Path | None]] = []
 
-    def fake_run_command(command: list[str], *, cwd: Path | None = None) -> CommandResult:
+    def fake_run_command(command: list[str], *, cwd: Path | None = None, env=None) -> CommandResult:
         calls.append((command, cwd))
         return CommandResult(command=command, cwd=cwd, returncode=0)
 
@@ -193,7 +193,7 @@ def test_build_vtk_runs_build_command(monkeypatch, tmp_path: Path) -> None:
     )
     calls: list[tuple[list[str], Path | None]] = []
 
-    def fake_run_command(command: list[str], *, cwd: Path | None = None) -> CommandResult:
+    def fake_run_command(command: list[str], *, cwd: Path | None = None, env=None) -> CommandResult:
         calls.append((command, cwd))
         return CommandResult(command=command, cwd=cwd, returncode=0)
 
@@ -239,7 +239,7 @@ def test_install_vtk_runs_install_command(monkeypatch, tmp_path: Path) -> None:
     )
     calls: list[tuple[list[str], Path | None]] = []
 
-    def fake_run_command(command: list[str], *, cwd: Path | None = None) -> CommandResult:
+    def fake_run_command(command: list[str], *, cwd: Path | None = None, env=None) -> CommandResult:
         calls.append((command, cwd))
         return CommandResult(command=command, cwd=cwd, returncode=0)
 
@@ -290,7 +290,7 @@ def test_wheel_vtk_prepares_tools_and_runs_wheel_command(monkeypatch, tmp_path: 
     (plan.build_dir / "setup.py").write_text("from setuptools import setup\n", encoding="utf-8")
     calls: list[tuple[list[str], Path | None]] = []
 
-    def fake_run_command(command: list[str], *, cwd: Path | None = None) -> CommandResult:
+    def fake_run_command(command: list[str], *, cwd: Path | None = None, env=None) -> CommandResult:
         calls.append((command, cwd))
         return CommandResult(command=command, cwd=cwd, returncode=0)
 
@@ -389,7 +389,7 @@ def x(ext):
 
     calls: list[tuple[list[str], Path | None]] = []
 
-    def fake_run_command(command: list[str], *, cwd: Path | None = None) -> CommandResult:
+    def fake_run_command(command: list[str], *, cwd: Path | None = None, env=None) -> CommandResult:
         calls.append((command, cwd))
         return CommandResult(command=command, cwd=cwd, returncode=0)
 
