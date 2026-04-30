@@ -25,10 +25,10 @@ The preferred direction is:
 
 The repository exists to prove one architectural point first:
 
-- `codecpp` can compile against a custom VTK SDK
-- a matching local `vtk` wheel can be installed into a venv
-- `codepy` can use `pyvista` in the same environment
-- both can coexist in one Python process without loading two conflicting VTK runtimes
+- `codecpp` can compile against a custom VTK SDK;
+- a matching local `vtk` wheel can be installed into a venv;
+- `codepy` can use `pyvista` in the same environment;
+- both can coexist in one Python process without loading two conflicting VTK runtimes.
 
 ## Design rules
 
@@ -43,23 +43,23 @@ The repository exists to prove one architectural point first:
 
 ```text
 .
-├─ constraints/
-├─ docs/
-├─ examples/
-├─ external/
-│  ├─ build/
-│  ├─ install/
-│  ├─ src/
-│  └─ wheelhouse/
-├─ packages/
-│  ├─ codecpp/
-│  ├─ codepy/
-│  └─ pmanager/
-├─ scripts/
-│  ├─ ubuntu/
-│  ├─ validate/
-│  └─ windows/
-└─ tests/
+|-- constraints/
+|-- docs/
+|-- examples/
+|-- external/
+|   |-- build/
+|   |-- install/
+|   |-- src/
+|   `-- wheelhouse/
+|-- packages/
+|   |-- codecpp/
+|   |-- codepy/
+|   `-- pmanager/
+|-- scripts/
+|   |-- ubuntu/
+|   |-- validate/
+|   `-- windows/
+`-- tests/
 ```
 
 ## Supported phase-1 targets
@@ -67,41 +67,71 @@ The repository exists to prove one architectural point first:
 - `win-amd64-msvc2022-py310-release`
 - `linux-x86_64-gcc-py312-release`
 
-The repository is intentionally ready for more Python versions later, but these two targets are the first supported baselines.
+The repository is intentionally ready for more Python versions later, but these
+two targets are the first supported baselines.
 
 ## Workflow summary
 
-1. Enter a sanitized shell using `scripts/windows/enter-clean-dev-shell.ps1` or `scripts/ubuntu/enter-clean-dev-shell.sh`.
-2. Create the target venv under `.venvs/<target>/`.
-3. Fetch VTK sources into `external/src/vtk-9.3.1` using `scripts/windows/fetch-vtk-source.cmd` on Windows.
-4. Audit the environment before doing any build or install work.
-5. Build VTK from `external/src/vtk-9.3.1` into `external/build/vtk-9.3.1/<target>/`.
-6. Install the VTK SDK into `external/install/vtk-9.3.1/<target>/sdk/`.
-7. Build a local `vtk` wheel into `external/wheelhouse/vtk-9.3.1/<target>/`.
-8. Install the local `vtk` wheel into the target venv.
-9. Install `pyvista` under a pinned constraints file.
-10. Build and install `packages/codecpp`.
-11. Run provenance and import-order validations.
+The preferred Windows workflow is now Python-first:
+
+```bat
+python scripts\bootstrap-dev-env.py
+.venvs\pmanager-dev\Scripts\activate.bat
+pmanager workflow windows-phase1
+```
+
+That workflow runs:
+
+1. fetch VTK sources into `external/src/vtk-9.3.1`;
+2. create the target venv under `.venvs/<target>/`;
+3. configure and build VTK in `external/build/vtk-9.3.1/<target>/`;
+4. install the native SDK into `external/install/vtk-9.3.1/<target>/sdk/`;
+5. build the local `vtk` wheel into `external/wheelhouse/vtk-9.3.1/<target>/`;
+6. install that local wheel into the target venv;
+7. install `pyvista` under a dynamic VTK constraint;
+8. build/install `packages/codecpp`, `packages/codepy`, and `packages/pmanager`;
+9. run provenance and import-order validations.
+
+The individual commands remain available for step-by-step debugging:
+
+```bat
+pmanager fetch vtk
+pmanager build vtk --configure
+pmanager build vtk --build
+pmanager build vtk --install
+pmanager build vtk --wheel
+pmanager sync venv
+pmanager validate provenance
+pmanager validate import-order
+```
+
+The older PowerShell/Bash scripts are still present as migration fallback, but
+the project direction is to remove their business logic once Python parity is
+fully accepted.
 
 ## Why the repository is strict about environment hygiene
 
 This project is explicitly designed for developer machines that may already expose:
 
-- global `PATH` entries for old SDKs
-- `PYTHONPATH` entries pointing to unmanaged packages
-- pre-existing `vtk` packages outside the target venv
-- `VTK_DIR`, `CMAKE_PREFIX_PATH`, `INCLUDE`, or `LIB` values from older native builds
+- global `PATH` entries for old SDKs;
+- `PYTHONPATH` entries pointing to unmanaged packages;
+- pre-existing `vtk` packages outside the target venv;
+- `VTK_DIR`, `CMAKE_PREFIX_PATH`, `INCLUDE`, or `LIB` values from older native builds.
 
-On such machines, "it works on my machine" is not a success signal. A valid run must remain correct after:
+On such machines, "it works on my machine" is not a success signal. A valid run
+must remain correct after:
 
-- clearing global Python path injections
-- removing accidental runtime loader help
-- forcing Python user site packages off
-- constraining CMake and pip inputs to the repo-managed target
+- clearing global Python path injections;
+- removing accidental runtime loader help;
+- forcing Python user site packages off;
+- constraining CMake and pip inputs to the repo-managed target.
 
-One nuance matters in practice: a sanitized shell can remove inherited environment variables, but it cannot magically remove packages already installed in the global interpreter's own `site-packages`.
+One nuance matters in practice: a sanitized shell can remove inherited
+environment variables, but it cannot magically remove packages already installed
+in the global interpreter's own `site-packages`.
 
-That is why the supported workflow always moves quickly to a target venv and treats runs from the global interpreter as diagnostic only.
+That is why the supported workflow always moves quickly to a target venv and
+treats runs from the global interpreter as diagnostic only.
 
 ## Key documents
 
@@ -110,20 +140,23 @@ That is why the supported workflow always moves quickly to a target venv and tre
 - `docs/runtime-model.md`
 - `docs/environment-hygiene.md`
 - `docs/validation-matrix.md`
+- `docs/python-first-dev-env.md`
 - `docs/windows-from-scratch.md`
 - `docs/decisions/0001-vtk-sdk-vs-python-runtime.md`
+- `AI_HANDOFF.md`
 
 ## Current implementation scope
 
 The repository now contains:
 
-- architecture and validation documentation
-- target naming and constraints files
-- sanitized shell entry scripts for Windows and Ubuntu
-- Python audit and provenance utilities
-- a `codecpp` package skeleton using CMake + SWIG + scikit-build-core
-- a `codepy` package skeleton using PyVista
-- a `pmanager` Typer CLI skeleton
+- architecture and validation documentation;
+- target naming and constraints files;
+- sanitized shell entry scripts for Windows and Ubuntu;
+- Python fetch/build/sync/workflow orchestration in `pmanager`;
+- Python audit and provenance utilities;
+- a `codecpp` package skeleton using CMake + SWIG + scikit-build-core;
+- a `codepy` package skeleton using PyVista;
+- a `pmanager` Typer CLI.
 
 The intended `pmanager` direction is Python-first. PowerShell and Bash should
 eventually remain only for shell-specific entry points and convenience wrappers.
@@ -133,11 +166,13 @@ On Windows, new user-facing commands should be shown for `cmd.exe` by default.
 
 Windows phase 1 is now validated for:
 
-- building VTK 9.3.1 from source with Python wrapping enabled
-- generating a local Windows wheel and installing it into the target venv
-- installing `pyvista` against that local VTK runtime
-- building and installing `codecpp`
-- importing `codecpp` and `pyvista` in both orders inside the same Python process
-- resolving VTK runtime DLLs from the venv instead of the SDK tree
+- building VTK 9.3.1 from source with Python wrapping enabled;
+- generating a local Windows wheel and installing it into the target venv;
+- installing `pyvista` against that local VTK runtime;
+- building and installing `codecpp`;
+- importing `codecpp` and `pyvista` in both orders inside the same Python process;
+- resolving VTK runtime DLLs from the venv instead of the SDK tree;
+- running `pmanager workflow windows-phase1` from a clean repository after
+  bootstrapping `.venvs/pmanager-dev`.
 
 Ubuntu remains the next platform to validate end-to-end.

@@ -22,7 +22,7 @@ The package must raise a diagnostic error if:
 - runtime DLL directories cannot be determined
 
 In practice, the local VTK wheel generated from source may not embed the VTK runtime DLLs itself on Windows.
-The supported repo workflow therefore stages the DLLs from the matching VTK build into `site-packages/bin` during `sync-venv.ps1`, which matches the layout expected by `vtkmodules/__init__.py`.
+The supported repo workflow therefore stages the DLLs from the matching VTK build into `site-packages/bin` during `pmanager sync venv`, which matches the layout expected by `vtkmodules/__init__.py`.
 When Qt-enabled VTK modules are present, the workflow also writes `vtkmodules/_build_paths.py` so VTK can add the Qt runtime directory through `os.add_dll_directory(...)`.
 That keeps the **effective** runtime origin inside the venv while avoiding dependence on the SDK path at import time.
 

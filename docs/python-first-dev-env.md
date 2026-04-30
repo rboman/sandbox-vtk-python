@@ -494,8 +494,6 @@ own subprocesses, it removes suspicious `PATH` entries such as old global VTK
 directories, foreign `.venv`/`.venvs` directories, `site-packages`, and Conda
 paths before running the strict audit and pip commands.
 
-## 14. Check the validation commands
-
 ## 14. Optional: run the Windows phase-1 workflow
 
 Once you have validated the individual commands, the same sequence can be run as
@@ -620,13 +618,7 @@ Expected result:
 
 The exact number may increase as the Python orchestration grows.
 
-## 18. What not to test yet
-
-Do not expect these commands to replace existing scripts yet:
-
-```bat
-pmanager build vtk
-```
+## 18. Transitional state
 
 At this stage:
 
@@ -639,8 +631,8 @@ At this stage:
 - `pmanager sync venv` can synchronize the target venv from the local wheelhouse.
 - `pmanager workflow windows-phase1` can run the whole Windows sequence.
 
-For real VTK work, continue using the validated scripts documented in
-`docs/windows-from-scratch.md`.
+The older PowerShell/Bash scripts are still present as migration fallback. New
+Windows validation should prefer `pmanager workflow windows-phase1`.
 
 ## 19. Suggested development loop
 
@@ -678,18 +670,16 @@ reinstalling in normal development.
 The VTK target venv remains separate. It should be managed later by `pmanager`,
 not used as the default development environment for `pmanager` itself.
 
-## 20. Rollback for this slice
+## 20. Rollback and cleanup
 
-This slice is deliberately low risk.
+This Python-first workflow writes only repo-local generated state:
 
-It does not modify:
-
-- `scripts/windows/fetch-vtk-source.ps1`
-- `scripts/windows/build-vtk.ps1`
-- `scripts/windows/sync-venv.ps1`
-- `scripts/ubuntu/build-vtk.sh`
-- `scripts/ubuntu/sync-venv.sh`
-- Windows DLL staging logic
+- `.venvs/`
+- `.tmp/`
+- `external/src/`
+- `external/build/`
+- `external/install/`
+- `external/wheelhouse/`
 
 If you only ran `pmanager build vtk --configure`, rollback is simply deleting
 the configured build tree for this target:
@@ -702,5 +692,5 @@ The validation scripts under `scripts\validate\` are modified, but only as thin
 wrappers around `pmanager.validation`. Their command-line behavior is intended
 to remain compatible.
 
-If the new Python-first helpers misbehave, the existing VTK workflow remains
-available through `docs/windows-from-scratch.md`.
+The existing PowerShell/Bash scripts remain available temporarily, but they are
+no longer the preferred Windows path.

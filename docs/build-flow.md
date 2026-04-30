@@ -23,20 +23,26 @@ Phase-1 examples:
 
 The repository must not assume that the produced wheel version string is exactly `9.3.1`.
 Current VTK builds may emit a wheel such as `vtk-9.3.1.dev0-...whl`.
-The sync scripts therefore install the actual wheel file first, detect the installed version, and then constrain `pyvista` against that exact local VTK runtime.
+The sync step therefore installs the actual wheel file first, detects the installed version, and then constrains `pyvista` against that exact local VTK runtime.
 
-On Windows, the sync step also stages the VTK runtime DLLs from the matching SDK build into the target venv so that `import vtk` succeeds without relying on the SDK path.
+On Windows, `pmanager sync venv` also stages the VTK runtime DLLs from the matching SDK build into the target venv so that `import vtk` succeeds without relying on the SDK path.
 
 ### Windows backend selection
 
-On Windows, `scripts/windows/build-vtk.ps1` now behaves as follows:
+On Windows, `pmanager build vtk` now behaves as follows:
 
 - prefer `Ninja` when `ninja` is available
-- initialize a fresh MSVC toolchain environment through `VsDevCmd.bat` before a Ninja build
+- require a Visual Studio developer `cmd.exe` prompt for Ninja/MSVC builds
 - fall back to the Visual Studio generator if Ninja is unavailable
 - always build in parallel
 
-If the build directory already contains a configured `CMakeCache.txt`, the script reuses that generator and refuses silent backend switching. This avoids corrupting an in-progress build tree.
+If the build directory already contains a configured `CMakeCache.txt`, `pmanager` reuses that generator and refuses silent backend switching. This avoids corrupting an in-progress build tree.
+
+The validated Windows convenience workflow is:
+
+```bat
+pmanager workflow windows-phase1
+```
 
 ## `codecpp` flow
 
