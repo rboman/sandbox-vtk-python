@@ -83,12 +83,6 @@ def run_windows_workflow(
     library = get_library("vtk")
     source_dir = paths.source_root / library.source_dir_name
 
-    # Create a clean environment for the workflow
-    clean_env = clean_environment(
-        repo_root=paths.root,
-        target=workflow.target,
-    )
-
     if workflow.skip_fetch:
         _step("Fetch VTK source: skipped")
     elif source_dir.exists() and not workflow.force_fetch:
@@ -104,9 +98,6 @@ def run_windows_workflow(
     print(f"Venv:   {sync_plan.venv_dir}")
     print(f"Python: {sync_plan.python_exe}")
 
-    # Update clean environment with target venv info
-    clean_env["VIRTUAL_ENV"] = str(sync_plan.venv_dir)
-
     _step("Prepare VTK build plan")
     build_plan = make_vtk_build_plan(
         target_name=workflow.target,
@@ -119,13 +110,13 @@ def run_windows_workflow(
     print_vtk_build_plan(build_plan)
 
     _step("Configure VTK")
-    configure_vtk(build_plan, env=clean_env)
+    configure_vtk(build_plan)
     _step("Build VTK")
-    build_vtk(build_plan, env=clean_env)
+    build_vtk(build_plan)
     _step("Install VTK SDK")
-    install_vtk(build_plan, env=clean_env)
+    install_vtk(build_plan)
     _step("Build VTK Python wheel")
-    wheel_vtk(build_plan, env=clean_env)
+    wheel_vtk(build_plan)
 
     _step("Sync target venv")
     sync_venv(sync_plan)

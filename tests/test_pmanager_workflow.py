@@ -81,6 +81,50 @@ def test_windows_workflow_skips_existing_source_and_validation(
     assert calls == ["venv", "configure", "build", "install", "wheel", "sync"]
 
 
+def test_windows_workflow_build_steps_use_current_shell_env(monkeypatch, tmp_path: Path) -> None:
+    target = "win-amd64-msvc2022-py310-release"
+    paths = ProjectPaths(root=tmp_path)
+    received_envs: list[object] = []
+
+    monkeypatch.setattr("pmanager.workflow.fetch_vtk", lambda *args, **kwargs: None)
+    monkeypatch.setattr("pmanager.workflow.ensure_target_venv", lambda *args, **kwargs: None)
+    monkeypatch.setattr("pmanager.workflow.sync_venv", lambda *args, **kwargs: None)
+    monkeypatch.setattr("pmanager.workflow.validate_target_runtime", lambda *args, **kwargs: None)
+
+    def fake_configure(*args, **kwargs):
+        received_envs.append(kwargs.get("env"))
+
+    def fake_build(*args, **kwargs):
+        received_envs.append(kwargs.get("env"))
+
+    def fake_install(*args, **kwargs):
+        received_envs.append(kwargs.get("env"))
+
+    def fake_wheel(*args, **kwargs):
+        received_envs.append(kwargs.get("env"))
+
+    monkeypatch.setattr("pmanager.workflow.configure_vtk", fake_configure)
+    monkeypatch.setattr("pmanager.workflow.build_vtk", fake_build)
+    monkeypatch.setattr("pmanager.workflow.install_vtk", fake_install)
+    monkeypatch.setattr("pmanager.workflow.wheel_vtk", fake_wheel)
+
+    run_windows_workflow(
+        WindowsWorkflow(
+            target=target,
+            backend="ninja",
+            generator=None,
+            architecture="x64",
+            parallel=None,
+            force_fetch=False,
+            skip_fetch=False,
+            skip_validation=True,
+        ),
+        paths=paths,
+    )
+
+    assert received_envs == [None, None, None, None]
+
+
 def test_validate_target_runtime_uses_target_python(monkeypatch, tmp_path: Path) -> None:
     from pmanager.sync import make_venv_sync_plan
     from pmanager.workflow import validate_target_runtime
