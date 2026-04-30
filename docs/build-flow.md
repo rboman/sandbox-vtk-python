@@ -30,7 +30,7 @@ On Windows, `pmanager sync venv` also stages the VTK runtime DLLs from the match
 
 ### Windows backend selection
 
-On Windows, `pmanager build vtk` now behaves as follows:
+On Windows, `pmanager build vtk` behaves as follows:
 
 - prefer `Ninja` when `ninja` is available
 - require a Visual Studio developer `cmd.exe` prompt for Ninja/MSVC builds
@@ -39,7 +39,7 @@ On Windows, `pmanager build vtk` now behaves as follows:
 
 If the build directory already contains a configured `CMakeCache.txt`, `pmanager` reuses that generator and refuses silent backend switching. This avoids corrupting an in-progress build tree.
 
-### Windows workflow (tested and operational)
+### Windows workflow
 
 ```bat
 pmanager workflow windows-phase1
@@ -54,7 +54,7 @@ This command runs the complete Windows sequence:
 - Install pyvista, codecpp, codepy, and pmanager packages
 - Validate provenance and import order
 
-### Linux workflow (tested and operational)
+### Linux workflow
 
 ```bash
 pmanager workflow linux-phase1

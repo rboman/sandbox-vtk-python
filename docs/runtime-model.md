@@ -26,7 +26,7 @@ The supported repo workflow therefore stages the DLLs from the matching VTK buil
 When Qt-enabled VTK modules are present, the workflow also writes `vtkmodules/_build_paths.py` so VTK can add the Qt runtime directory through `os.add_dll_directory(...)`.
 That keeps the **effective** runtime origin inside the venv while avoiding dependence on the SDK path at import time.
 
-Phase-1 Windows validation has confirmed that this model works for:
+The runtime model applies to:
 
 - `vtk`
 - `pyvista`
@@ -37,7 +37,7 @@ Phase-1 Windows validation has confirmed that this model works for:
 
 `_codecpp.so` must carry an explicit `RUNPATH` so the loader can resolve VTK from the installed wheel layout.
 
-Phase-1 baseline:
+Baseline RUNPATH entries:
 
 - `$ORIGIN`
 - `$ORIGIN/..`

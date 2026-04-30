@@ -18,7 +18,7 @@ simple solution when it is good enough for daily laboratory work.
 - support Windows and Ubuntu
 - support Python 3.10 first
 - support local wheel-based VTK installation
-- prepare a Python-first `pmanager` orchestration tool
+- operate a Python-first `pmanager` orchestration tool
 - keep the project ready for later support of multiple external libraries
 - make the workflow understandable enough for a student to use and adapt
 
@@ -30,10 +30,9 @@ simple solution when it is good enough for daily laboratory work.
   understand.
 - Keep VTK as the concrete first recipe; generalize only after a second library
   makes the shared pattern clear.
-- Keep shell scripts as thin as possible once Python replacements are validated.
+- Keep shell scripts as thin wrappers around Python orchestration.
 - Prefer `cmd.exe` examples for Windows user instructions. PowerShell should not
-  be required for new day-to-day commands unless an existing script still needs
-  it during the transition.
+  be required for new day-to-day commands.
 
 ## Non-goals for phase 1
 

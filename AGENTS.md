@@ -1,81 +1,84 @@
 # AGENTS.md
 
-## Repository purpose
+## Audience and scope
 
-This repository is a cross-platform sandbox for a mixed C++ / Python project using a custom-built VTK.
+This file targets AI agents that maintain the multi-platform build system and `pmanager`.
 
-The purpose is to validate architecture, packaging, and runtime behavior.
-Functional demo code is intentionally trivial.
+In scope:
 
-## Primary goals
+- fetch/build/install/wheel/sync/validate orchestration
+- environment sanitization and reproducibility
+- target modeling and platform behavior
+- documentation for build mechanics
 
-- build VTK 9.3.1 from source
-- use it for native C++ compilation
-- generate a matching local Python wheel for `vtk`
-- install that wheel into a virtual environment
-- use `pyvista` in the same environment
-- validate that `codecpp` and `pyvista` can coexist in one Python process
+Out of scope:
 
-## Platforms
+- feature development inside `codecpp` business logic
+- feature development inside `codepy` business logic
+- application-level simulation behavior
 
-- Windows with Visual Studio 2022
-- Ubuntu/Linux
+## System contract
 
-Both are important from the beginning.
+1. Compile-time authority and runtime authority stay separate.
+2. Build inputs are explicit and target-specific.
+3. Runtime provenance always points to the target venv.
+4. Global shell state is untrusted.
 
-## Initial technology choices
+Compile-time authority:
 
-- CMake
-- SWIG
-- pyproject.toml
-- venv + pip
-- typer for future CLI orchestration
+```text
+external/install/vtk-9.3.1/<target>/sdk/
+```
 
-## Important architectural rule
+Runtime authority:
 
-Compile-time and run-time concerns must remain explicit.
+```text
+.venvs/<target>/.../site-packages/
+```
 
-The repository should distinguish:
-1. a native SDK/install tree used for C++ compilation
-2. a Python wheel/runtime used inside the venv
+## Supported targets
 
-## Runtime rule
+- `win-amd64-msvc2022-py310-release`
+- `linux-x86_64-gcc-py312-release`
 
-At Python runtime, `codecpp`, `vtk`, and `pyvista` must resolve to one coherent VTK runtime.
+## Build-system responsibilities
 
-## Planning rule
+`pmanager` is the primary orchestrator and owns:
 
-Do not rush into implementation.
-Prefer:
-- explicit documentation
-- directory layout
-- validation strategy
-- import-order tests
-- DLL/shared-library provenance checks
+- source fetch
+- cmake configure/build/install
+- wheel generation
+- target venv sync
+- validation execution (`audit`, `provenance`, `import-order`)
 
-## What to avoid
+## Safety rules for AI changes
 
-- hardcoded Python-version-specific site-packages paths
-- accidental dependence on a globally installed VTK
-- mixing native SDK binaries and venv runtime binaries without documenting it
-- premature large code generation
-- unnecessary empty boilerplate files
+- Never introduce hidden dependence on global `VTK_DIR`, `CMAKE_PREFIX_PATH`, `PYTHONPATH`, `LD_LIBRARY_PATH`, or SDK `bin` directories.
+- Keep path construction target-specific and inspectable.
+- Keep workflow steps runnable independently for debugging.
+- Keep Windows and Linux parity in command design and docs.
+- Prefer small, reversible changes with tests.
 
-## Phase-1 status
+## Validation requirements
 
-**COMPLETED AND VALIDATED** ✅
+Any change to build/sync/workflow logic keeps these checks green:
 
-Both Windows and Linux phase-1 workflows are fully operational:
+1. `pmanager validate audit --mode strict`
+2. `pmanager validate provenance`
+3. `pmanager validate import-order --require-extension`
+4. unit tests under `tests/`
 
-- ✅ Repository structure is stable and well-documented
-- ✅ VTK build/runtime strategy is explicit and proven on both platforms
-- ✅ Validation matrix is complete (audit, provenance, import-order)
-- ✅ Implementation order is proven in practice
+## Change policy
 
-### Validated outcomes
+When updating the build system:
 
-- **Windows**: `pmanager workflow windows-phase1` succeeds end-to-end with target `win-amd64-msvc2022-py310-release`
-- **Linux**: `pmanager workflow linux-phase1` succeeds end-to-end with target `linux-x86_64-gcc-py312-release`
-- Both platforms: VTK wheel generated, installed into venv, codecpp compiled and loaded, pyvista importable
-- Both platforms: provenance validation confirms all VTK runtime libraries loaded from venv, not SDK tree
-- Both platforms: codecpp and pyvista coexist without runtime conflicts
+1. update code
+2. update tests
+3. update active docs outside `docs/legacy/`
+4. keep migration history in `docs/legacy/` only
+
+## Evolution direction
+
+- keep VTK as the concrete baseline recipe
+- add new external libraries only after preserving current invariants
+- keep shell scripts thin wrappers around Python orchestration

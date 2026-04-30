@@ -4,7 +4,7 @@ Python-first orchestrator for the VTK sandbox project.
 
 ## Status
 
-Phase-1 fully implemented and operationally validated:
+Current operational scope:
 
 - ✅ Environment auditing with strict safety checks
 - ✅ Automatic target discovery (Windows/Linux, Python 3.10/3.12)

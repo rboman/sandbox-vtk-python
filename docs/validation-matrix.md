@@ -27,25 +27,25 @@
 - loaded VTK libraries originate from the target venv
 - no VTK library originates from the SDK tree
 
-### Windows phase-1 validated result ✅
+### Windows phase-1 runtime contract
 
 - target: `win-amd64-msvc2022-py310-release`
 - workflow: `pmanager workflow windows-phase1`
-- local wheel built successfully as `vtk-9.3.1.dev0-cp310-cp310-win_amd64.whl`
+- local wheel uses the `vtk-9.3.1.dev0-...` naming pattern
 - `pmanager sync venv` installs that wheel, stages runtime DLLs into `site-packages/bin`, and writes `vtkmodules/_build_paths.py`
-- `pmanager validate provenance` succeeds after sync
-- `pmanager validate import-order --require-extension` succeeds in both import orders
+- `pmanager validate provenance` is required to pass
+- `pmanager validate import-order --require-extension` is required to pass in both import orders
 - `codecpp` extension module compiles and loads
 - all three imports (vtk, pyvista, codecpp) coexist in one process
 
-### Linux phase-1 validated result ✅
+### Linux phase-1 runtime contract
 
 - target: `linux-x86_64-gcc-py312-release`
 - workflow: `pmanager workflow linux-phase1`
-- local wheel built successfully as `vtk-9.3.1.dev0-cp312-cp312-linux_x86_64.whl`
+- local wheel uses the `vtk-9.3.1.dev0-...` naming pattern
 - `pmanager sync venv` installs that wheel and all dependencies
-- `pmanager validate provenance` succeeds after sync: 293 libraries inside target venv, 0 outside
-- `pmanager validate import-order --require-extension` succeeds in both import orders
+- `pmanager validate provenance` is required to report VTK runtime libraries from the target venv
+- `pmanager validate import-order --require-extension` is required to pass in both import orders
 - `codecpp` extension module compiles via SWIG and loads without relying on global `/opt` paths
 - environment sanitization (strict whitelist PATH) prevents pollution from global VTK installations
 - all three imports (vtk, pyvista, codecpp) coexist in one process

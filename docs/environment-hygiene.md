@@ -6,7 +6,7 @@ This repository is designed for numerical simulation work on research
 workstations. Those machines may already expose unmanaged SDKs and Python
 packages globally.
 
-On the current Windows machine used for development, there are already examples of:
+Typical sources of pollution include:
 
 - global `INCLUDE` and `LIB`
 - pre-existing `vtk==9.3.1` outside any project venv
@@ -67,9 +67,8 @@ daily lab development reproducible enough that a successful run means something.
 ### Windows
 
 - Prefer `cmd.exe` for user-facing commands and day-to-day testing.
-- PowerShell is still used by some existing scripts during the transition, but
-  new instructions should avoid requiring PowerShell knowledge.
-- Do not reuse a terminal that has already sourced historical SDK setup scripts.
+- User-facing commands should prefer `cmd.exe` examples.
+- Do not reuse a terminal that already sourced SDK setup scripts unrelated to this repository.
 - Treat any successful run from a "dirty" shell as untrusted until it also succeeds in a clean repo shell.
 - As the Python-first workflow grows, add thin `.cmd` wrappers before asking the
   user to run PowerShell directly.

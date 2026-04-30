@@ -16,4 +16,4 @@
 ## Naming convention idea
 
 - `win-amd64-msvc2022-py310-release`
-- `linux-x86_64-gcc-py310-release`
+- `linux-x86_64-gcc-py312-release`
