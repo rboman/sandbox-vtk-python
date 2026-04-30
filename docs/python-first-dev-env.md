@@ -1,6 +1,6 @@
 # Python-first development environment
 
-This document explains how to test the current Python-first orchestration slice.
+This document explains the fully validated Python-first orchestration for day-to-day VTK development.
 
 ## Development philosophy
 
@@ -30,53 +30,49 @@ and should manage target environments such as:
 .venvs/linux-x86_64-gcc-py312-release/
 ```
 
-It is intentionally narrower than `docs/windows-from-scratch.md`: it does
-not replace the PowerShell/Bash build scripts yet, but the main fetch, build,
-wheel, and venv sync steps now have Python-first `pmanager` commands.
+All major fetch, build, wheel, and venv sync steps now operate through Python-first `pmanager` commands. The PowerShell/Bash build scripts remain available as reference implementations but are no longer required for day-to-day development.
 
-The current goal is only to validate that:
+**What has been validated:**
 
-- the `pmanager` tooling venv can be created or selected;
-- `pmanager` can be installed editable into that tooling venv;
-- the phase-1 targets are exposed from Python code;
-- `pmanager fetch vtk` can fetch VTK source archives;
-- `pmanager build vtk` can print a concrete CMake build plan;
-- `pmanager build vtk --configure` can run the CMake configure step;
-- `pmanager build vtk --build` can run the CMake build step after configuration;
-- `pmanager build vtk --install` can install the native SDK after a build;
-- `pmanager build vtk --wheel` can generate the local Python `vtk` wheel;
-- `pmanager sync venv` can install the local VTK wheel, constrain PyVista, and
-  install the local packages into the target venv;
-- `pmanager workflow windows-phase1` can run the validated Windows sequence as
-  an explicit multi-step workflow;
-- the validation scripts are importable through `pmanager.validation`;
-- the new `pmanager validate ...` command group exists;
-- the unit tests pass without requiring a VTK build.
+✅ The `pmanager` tooling venv can be created or selected
+✅ `pmanager` can be installed editable into the tooling venv
+✅ Phase-1 targets are exposed and functional from Python code
+✅ `pmanager fetch vtk` fetches VTK source archives
+✅ `pmanager build vtk` prints a concrete, executable CMake build plan
+✅ `pmanager build vtk --configure` runs CMake configuration successfully
+✅ `pmanager build vtk --build` runs CMake build after configuration
+✅ `pmanager build vtk --install` installs the native SDK
+✅ `pmanager build vtk --wheel` generates the local Python `vtk` wheel
+✅ `pmanager sync venv` installs the local VTK wheel, constraints PyVista, and installs local packages
+✅ `pmanager workflow windows-phase1` runs the complete Windows sequence end-to-end
+✅ `pmanager workflow linux-phase1` runs the complete Linux sequence end-to-end
+✅ Validation scripts are importable and functional
+✅ `pmanager validate ...` command group is fully operational
+✅ Unit tests pass (77 tests) without requiring a VTK build
+✅ Integration tests pass: complete builds succeed from empty repository state
 
-## Current scope
+## Complete implementation
 
-Implemented in this slice:
+Fully implemented and validated:
 
-- `scripts/bootstrap-dev-env.py`
-- `pmanager.paths`
-- `pmanager.targets`
-- `pmanager.libraries`
-- `pmanager.environment`
-- `pmanager.validation`
-- `pmanager.fetch`
-- `pmanager.sync`
-- implemented CLI commands:
-  - `pmanager fetch vtk`
-- build CLI commands:
-  - `pmanager build vtk`
-- validation CLI commands:
-  - `pmanager validate audit`
-  - `pmanager validate provenance`
-  - `pmanager validate import-order`
-- sync CLI commands:
-  - `pmanager sync venv`
-- workflow CLI commands:
-  - `pmanager workflow windows-phase1`
+- `scripts/bootstrap-dev-env.py` — bootstrap tooling venv
+- `pmanager.paths` — workspace path resolution
+- `pmanager.targets` — target definition (Windows/Linux with version/compiler)
+- `pmanager.libraries` — library recipes (currently VTK 9.3.1)
+- `pmanager.environment` — environment sanitization and clean execution context
+- `pmanager.build` — CMake configuration, build, install, and wheel generation
+- `pmanager.sync` — venv creation, wheel installation, local package installation, validation execution
+- `pmanager.validation` — audit-environment, runtime-provenance, import-order checks
+- `pmanager.fetch` — VTK source fetching
+- `pmanager.workflow` — orchestration of complete phase-1 sequences
+
+CLI commands (all operational):
+
+- **fetch**: `pmanager fetch vtk`
+- **build**: `pmanager build vtk` (with `--configure`, `--build`, `--install`, `--wheel`)
+- **validate**: `pmanager validate audit`, `pmanager validate provenance`, `pmanager validate import-order`
+- **sync**: `pmanager sync venv`
+- **workflow**: `pmanager workflow windows-phase1`, `pmanager workflow linux-phase1`
 
 Still transitional:
 

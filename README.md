@@ -70,9 +70,13 @@ The repository exists to prove one architectural point first:
 The repository is intentionally ready for more Python versions later, but these
 two targets are the first supported baselines.
 
+## Status: Phase-1 Complete
+
+Both Windows and Linux phase-1 workflows are **validated and operational**.
+
 ## Workflow summary
 
-The preferred Windows workflow is now Python-first:
+### Windows workflow (tested and working)
 
 ```bat
 python scripts\bootstrap-dev-env.py
@@ -80,7 +84,15 @@ python scripts\bootstrap-dev-env.py
 pmanager workflow windows-phase1
 ```
 
-That workflow runs:
+### Linux workflow (tested and working)
+
+```bash
+python scripts/bootstrap-dev-env.py
+source .venvs/pmanager-dev/bin/activate
+pmanager workflow linux-phase1
+```
+
+## What the workflow does (both Windows and Linux):
 
 1. fetch VTK sources into `external/src/vtk-9.3.1`;
 2. create the target venv under `.venvs/<target>/`;

@@ -61,10 +61,21 @@ Prefer:
 - premature large code generation
 - unnecessary empty boilerplate files
 
-## Phase-1 success criteria
+## Phase-1 status
 
-Phase 1 is successful when:
-- the repository structure is agreed
-- the VTK build/runtime strategy is explicit
-- the validation matrix is explicit
-- implementation order is clear
+**COMPLETED AND VALIDATED** ✅
+
+Both Windows and Linux phase-1 workflows are fully operational:
+
+- ✅ Repository structure is stable and well-documented
+- ✅ VTK build/runtime strategy is explicit and proven on both platforms
+- ✅ Validation matrix is complete (audit, provenance, import-order)
+- ✅ Implementation order is proven in practice
+
+### Validated outcomes
+
+- **Windows**: `pmanager workflow windows-phase1` succeeds end-to-end with target `win-amd64-msvc2022-py310-release`
+- **Linux**: `pmanager workflow linux-phase1` succeeds end-to-end with target `linux-x86_64-gcc-py312-release`
+- Both platforms: VTK wheel generated, installed into venv, codecpp compiled and loaded, pyvista importable
+- Both platforms: provenance validation confirms all VTK runtime libraries loaded from venv, not SDK tree
+- Both platforms: codecpp and pyvista coexist without runtime conflicts

@@ -64,10 +64,8 @@ This venv-installed wheel is the only supported source for:
 ### `packages/pmanager`
 
 - Python-first orchestration helper for day-to-day development.
-- It should eventually own fetch/build/sync/validation logic that currently
-  lives in PowerShell/Bash scripts.
-- It should remain small and concrete while VTK is the only real external
-  library recipe.
+- Owns fetch/build/sync/validation logic previously in PowerShell/Bash scripts.
+- Remains small and concrete: VTK is the only real external library recipe so far.
 
 ## Non-negotiable constraints
 
