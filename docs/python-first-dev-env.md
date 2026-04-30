@@ -670,7 +670,66 @@ reinstalling in normal development.
 The VTK target venv remains separate. It should be managed later by `pmanager`,
 not used as the default development environment for `pmanager` itself.
 
-## 20. Rollback and cleanup
+## 20. Troubleshooting
+
+### MSVC compiler access violation (`CL.exe` exit code `-1073741819`)
+
+If you see:
+
+```text
+error MSB6006: "CL.exe" exited with code -1073741819
+```
+
+This is an access violation (`0xC0000005`) in the MSVC compiler process. On some machines this happens in `c2.dll` (optimizer) under heavy parallel build pressure.
+
+**Recommended approach:**
+
+1. Retry with lower parallelism:
+
+```bat
+pmanager workflow windows-phase1 --backend vs --parallel 4
+```
+
+If the machine is memory-constrained, try `--parallel 2`.
+
+2. If the build is already configured and failed at compile time, resume with reduced parallelism:
+
+```bat
+pmanager build vtk --target win-amd64-msvc2022-py310-release --backend vs --build --parallel 2
+pmanager build vtk --target win-amd64-msvc2022-py310-release --backend vs --install
+pmanager build vtk --target win-amd64-msvc2022-py310-release --backend vs --wheel
+pmanager sync venv --target win-amd64-msvc2022-py310-release
+```
+
+3. If the same crash persists at low parallelism, update Visual Studio 2022 to the latest v143 toolset and rerun. This is typically a toolchain bug rather than a project-source error.
+
+### Activating MSVC tools in a VS Code terminal
+
+To activate MSVC compiler tools (`cl.exe`, `link.exe`, etc.) in the current integrated terminal without opening a separate Visual Studio developer command prompt:
+
+**In `cmd.exe`:**
+
+```bat
+call scripts\windows\vsdev.cmd
+```
+
+This uses `vswhere.exe` to locate Visual Studio 2022 Community and calls `vcvarsall.bat x64` in-place.
+
+**In PowerShell** (less preferred):
+
+```powershell
+.\scripts\windows\vsdev.ps1
+```
+
+After activation, you can run `pmanager` commands that require Ninja in the same terminal:
+
+```bat
+pmanager workflow windows-phase1 --backend ninja
+```
+
+Note: The Visual Studio generator backend does not require explicit MSVC tool activation because MSBuild handles the compiler environment internally.
+
+## 21. Rollback and cleanup
 
 This Python-first workflow writes only repo-local generated state:
 

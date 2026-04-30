@@ -109,6 +109,16 @@ The older PowerShell/Bash scripts are still present as migration fallback, but
 the project direction is to remove their business logic once Python parity is
 fully accepted.
 
+## Getting started
+
+For complete step-by-step Windows validation and troubleshooting:
+
+👉 **[docs/python-first-dev-env.md](docs/python-first-dev-env.md)** — Complete Windows workflow guide with all phases explained
+
+For understanding the project architecture and design decisions:
+
+👉 **[docs/architecture.md](docs/architecture.md)** — Design principles and compile-time/runtime separation
+
 ## Why the repository is strict about environment hygiene
 
 This project is explicitly designed for developer machines that may already expose:
@@ -135,15 +145,24 @@ treats runs from the global interpreter as diagnostic only.
 
 ## Key documents
 
-- `docs/architecture.md`
-- `docs/build-flow.md`
-- `docs/runtime-model.md`
-- `docs/environment-hygiene.md`
-- `docs/validation-matrix.md`
-- `docs/python-first-dev-env.md`
-- `docs/windows-from-scratch.md`
-- `docs/decisions/0001-vtk-sdk-vs-python-runtime.md`
-- `AI_HANDOFF.md`
+**Primary references:**
+- [docs/python-first-dev-env.md](docs/python-first-dev-env.md) — Windows workflow guide (start here)
+- [docs/architecture.md](docs/architecture.md) — Design and architectural decisions
+
+**Supporting architecture and design:**
+- [docs/build-flow.md](docs/build-flow.md) — Build system flow and backend selection
+- [docs/runtime-model.md](docs/runtime-model.md) — VTK runtime model and venv structure
+- [docs/environment-hygiene.md](docs/environment-hygiene.md) — Environment isolation strategy
+- [docs/validation-matrix.md](docs/validation-matrix.md) — Validation approach and targets
+- [docs/platform-matrix.md](docs/platform-matrix.md) — Supported platforms and targets
+
+**Historical decisions:**
+- [docs/decisions/0001-vtk-sdk-vs-python-runtime.md](docs/decisions/0001-vtk-sdk-vs-python-runtime.md) — Why SDK and runtime are separated
+- [docs/objectives-and-non-goals.md](docs/objectives-and-non-goals.md) — Project scope and constraints
+- [docs/problem-statement.md](docs/problem-statement.md) — Original problem context
+
+**Internal coordination:**
+- [AI_HANDOFF.md](AI_HANDOFF.md) — Handoff notes for multi-session AI development
 
 ## Current implementation scope
 
@@ -164,15 +183,28 @@ On Windows, new user-facing commands should be shown for `cmd.exe` by default.
 
 ## Current validation status
 
-Windows phase 1 is now validated for:
+### ✅ Windows phase-1 (VALIDATED)
 
-- building VTK 9.3.1 from source with Python wrapping enabled;
-- generating a local Windows wheel and installing it into the target venv;
-- installing `pyvista` against that local VTK runtime;
-- building and installing `codecpp`;
-- importing `codecpp` and `pyvista` in both orders inside the same Python process;
-- resolving VTK runtime DLLs from the venv instead of the SDK tree;
-- running `pmanager workflow windows-phase1` from a clean repository after
-  bootstrapping `.venvs/pmanager-dev`.
+The complete Windows workflow is validated for:
 
-Ubuntu remains the next platform to validate end-to-end.
+- Building VTK 9.3.1 from source with Python wrapping enabled
+- Generating a local VTK wheel and installing it into the target venv
+- Installing PyVista against that local VTK runtime
+- Building and installing codecpp C++ extension
+- Importing codecpp and PyVista in both orders within a single Python process
+- Resolving VTK runtime DLLs from the venv (not the SDK tree)
+- Both Visual Studio 2022 and Ninja backends with MSVC toolchain
+- Parallel builds (with optional `--parallel N` tuning for resource-constrained machines)
+- Troubleshooting MSVC compiler access violations and environment activation
+
+**Run it yourself:**
+
+```bat
+python scripts\bootstrap-dev-env.py
+.venvs\pmanager-dev\Scripts\activate.bat
+pmanager workflow windows-phase1
+```
+
+### ⏳ Ubuntu phase-1 (NEXT)
+
+Linux validation using the same phase-1 approach is the next priority. The Ubuntu workflow will follow the same orchestration pattern as Windows.
