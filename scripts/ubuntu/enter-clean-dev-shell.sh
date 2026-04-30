@@ -18,6 +18,7 @@ if [[ $# -gt 1 ]]; then
     LANG="${LANG:-C.UTF-8}" \
     PATH="${clean_path}" \
     PYTHONNOUSERSITE=1 \
+    PYTHONPATH="" \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     SANDBOX_VTK_PYTHON_REPO_ROOT="${repo_root}" \
     SANDBOX_VTK_PYTHON_TARGET="${target}" \
@@ -39,6 +40,7 @@ exec env -i \
   LANG="${LANG:-C.UTF-8}" \
   PATH="${clean_path}" \
   PYTHONNOUSERSITE=1 \
+  PYTHONPATH="" \
   PIP_DISABLE_PIP_VERSION_CHECK=1 \
   SANDBOX_VTK_PYTHON_REPO_ROOT="${repo_root}" \
   SANDBOX_VTK_PYTHON_TARGET="${target}" \

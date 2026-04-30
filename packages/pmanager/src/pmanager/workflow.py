@@ -130,3 +130,71 @@ def run_windows_phase1_or_raise(workflow: WindowsPhase1Workflow) -> None:
         run_windows_phase1_workflow(workflow)
     except (BuildPlanError, FetchError, SyncError) as exc:
         raise WorkflowError(str(exc)) from exc
+
+
+@dataclass(frozen=True)
+class LinuxPhase1Workflow:
+    target: str
+    parallel: int | None
+    force_fetch: bool
+    skip_fetch: bool
+    skip_validation: bool
+
+
+def run_linux_phase1_workflow(
+    workflow: LinuxPhase1Workflow,
+    *,
+    paths: ProjectPaths | None = None,
+) -> None:
+    paths = paths or ProjectPaths.discover()
+    library = get_library("vtk")
+    source_dir = paths.source_root / library.source_dir_name
+
+    if workflow.skip_fetch:
+        _step("Fetch VTK source: skipped")
+    elif source_dir.exists() and not workflow.force_fetch:
+        _step("Fetch VTK source: already present")
+        print(f"Source: {source_dir}")
+    else:
+        _step("Fetch VTK source")
+        fetch_vtk(force=workflow.force_fetch, paths=paths, verbose=True)
+
+    _step("Prepare target venv")
+    sync_plan = make_venv_sync_plan(target_name=workflow.target, paths=paths)
+    ensure_target_venv(sync_plan)
+    print(f"Venv:   {sync_plan.venv_dir}")
+    print(f"Python: {sync_plan.python_exe}")
+
+    _step("Prepare VTK build plan")
+    build_plan = make_vtk_build_plan(
+        target_name=workflow.target,
+        paths=paths,
+        parallel=workflow.parallel,
+    )
+    print_vtk_build_plan(build_plan)
+
+    _step("Configure VTK")
+    configure_vtk(build_plan)
+    _step("Build VTK")
+    build_vtk(build_plan)
+    _step("Install VTK SDK")
+    install_vtk(build_plan)
+    _step("Build VTK Python wheel")
+    wheel_vtk(build_plan)
+
+    _step("Sync target venv")
+    sync_venv(sync_plan)
+
+    if workflow.skip_validation:
+        _step("Validation: skipped")
+        return
+
+    _step("Validate target runtime")
+    validate_target_runtime(sync_plan)
+
+
+def run_linux_phase1_or_raise(workflow: LinuxPhase1Workflow) -> None:
+    try:
+        run_linux_phase1_workflow(workflow)
+    except (BuildPlanError, FetchError, SyncError) as exc:
+        raise WorkflowError(str(exc)) from exc
