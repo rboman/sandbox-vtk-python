@@ -27,6 +27,7 @@ class VenvSyncPlan:
     constraints_file: Path
     wheelhouse_dir: Path
     sdk_dir: Path
+    vtk_build_dir: Path
     audit_script: Path
     tmp_dir: Path
     vtk_constraint_file: Path
@@ -62,6 +63,7 @@ def make_venv_sync_plan(
         constraints_file=resolved_constraints,
         wheelhouse_dir=paths.wheelhouse_root / library.source_dir_name / target.name,
         sdk_dir=paths.install_root / library.source_dir_name / target.name / "sdk",
+        vtk_build_dir=paths.build_root / library.source_dir_name / target.name,
         audit_script=paths.root / "scripts" / "validate" / "audit-environment.py",
         tmp_dir=paths.root / ".tmp",
         vtk_constraint_file=paths.root / ".tmp" / f"vtk-constraint-{target.name}.txt",
@@ -102,8 +104,38 @@ def target_command_env(plan: VenvSyncPlan) -> dict[str, str]:
 
 def codecpp_build_env(plan: VenvSyncPlan) -> dict[str, str]:
     env = target_command_env(plan)
-    env["CMAKE_PREFIX_PATH"] = str(plan.sdk_dir)
+    vtk_cmake_dir = resolve_vtk_cmake_dir(plan)
+    env["VTK_DIR"] = str(vtk_cmake_dir)
+    env["CMAKE_PREFIX_PATH"] = os.pathsep.join([str(vtk_cmake_dir), str(plan.sdk_dir), str(plan.vtk_build_dir)])
     return env
+
+
+def resolve_vtk_cmake_dir(plan: VenvSyncPlan) -> Path:
+    candidates: list[Path] = [
+        plan.sdk_dir / "lib" / "cmake" / "vtk-9.3",
+        plan.sdk_dir,
+        plan.vtk_build_dir,
+    ]
+
+    for base in candidates:
+        if not base.exists():
+            continue
+        if (base / "VTKConfig.cmake").exists() or (base / "vtk-config.cmake").exists():
+            return base
+
+    for base in candidates:
+        if not base.exists():
+            continue
+        for pattern in ("VTKConfig.cmake", "vtk-config.cmake"):
+            matches = sorted(base.rglob(pattern))
+            if matches:
+                return matches[0].parent
+
+    raise SyncError(
+        "Unable to find VTK CMake package files (VTKConfig.cmake or vtk-config.cmake) "
+        f"under SDK '{plan.sdk_dir}' or build tree '{plan.vtk_build_dir}'. "
+        "Run 'pmanager workflow windows-phase1 --backend vs --parallel <N>' or rerun install after configure/build."
+    )
 
 
 def ensure_target_venv(plan: VenvSyncPlan) -> None:

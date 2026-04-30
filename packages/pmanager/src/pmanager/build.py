@@ -43,6 +43,7 @@ class VtkBuildPlan:
 
 VTK_CMAKE_OPTIONS = (
     "-DCMAKE_BUILD_TYPE=Release",
+    "-DVTK_INSTALL_SDK=ON",
     "-DVTK_WRAP_PYTHON=ON",
     "-DVTK_WHEEL_BUILD=ON",
     "-DVTK_GROUP_ENABLE_Qt=WANT",
@@ -277,6 +278,23 @@ def _ensure_python_exists(plan: VtkBuildPlan) -> None:
         raise BuildPlanError(f"Python executable does not exist: {plan.python_exe}")
 
 
+def _force_release_config_in_vtk_wheel_setup(plan: VtkBuildPlan, setup_py: Path) -> None:
+    if plan.build_choice.backend != "vs":
+        return
+
+    text = setup_py.read_text(encoding="utf-8")
+    needle = "subprocess.check_call([CMAKE_EXE, '--build', BUILD_DIR, '--target', ext.target],"
+    replacement = (
+        "subprocess.check_call([CMAKE_EXE, '--build', BUILD_DIR, '--target', ext.target, "
+        "'--config', 'Release'],"
+    )
+
+    if replacement in text or needle not in text:
+        return
+
+    setup_py.write_text(text.replace(needle, replacement), encoding="utf-8")
+
+
 def build_vtk(plan: VtkBuildPlan) -> CommandResult:
     _ensure_configured_build_tree(plan, next_step="--build")
     return run_command(plan.build_command)
@@ -296,6 +314,8 @@ def wheel_vtk(plan: VtkBuildPlan) -> CommandResult:
             f"VTK wheel setup.py does not exist: {setup_py}. "
             "Make sure VTK was configured with -DVTK_WHEEL_BUILD=ON."
         )
+
+    _force_release_config_in_vtk_wheel_setup(plan, setup_py)
 
     plan.wheelhouse_dir.mkdir(parents=True, exist_ok=True)
     run_command(plan.wheel_tools_command)

@@ -46,6 +46,7 @@ def test_vtk_build_plan_uses_target_layout(tmp_path: Path) -> None:
     assert plan.build_dir == tmp_path / "external" / "build" / "vtk-9.3.1" / target
     assert plan.install_dir == tmp_path / "external" / "install" / "vtk-9.3.1" / target / "sdk"
     assert plan.wheelhouse_dir == tmp_path / "external" / "wheelhouse" / "vtk-9.3.1" / target
+    assert "-DVTK_INSTALL_SDK=ON" in plan.configure_command
     assert "-DVTK_WRAP_PYTHON=ON" in plan.configure_command
     assert "-DVTK_WHEEL_BUILD=ON" in plan.configure_command
     assert "-A" in plan.configure_command
@@ -353,6 +354,55 @@ def test_wheel_vtk_refuses_missing_setup_py(tmp_path: Path) -> None:
         assert "setup.py does not exist" in str(exc)
     else:  # pragma: no cover - defensive
         raise AssertionError("Expected missing setup.py refusal")
+
+
+def test_wheel_vtk_forces_release_config_in_generated_setup_for_vs(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    paths = ProjectPaths(root=tmp_path)
+    target = "win-amd64-msvc2022-py310-release"
+    python_exe = tmp_path / ".venvs" / target / "Scripts" / "python.exe"
+    plan = make_vtk_build_plan(
+        target_name=target,
+        paths=paths,
+        python_exe=python_exe,
+        requested_backend="vs",
+    )
+    python_exe.parent.mkdir(parents=True)
+    python_exe.write_text("", encoding="utf-8")
+    plan.build_dir.mkdir(parents=True)
+    (plan.build_dir / "CMakeCache.txt").write_text(
+        "CMAKE_GENERATOR:INTERNAL=Visual Studio 17 2022\n",
+        encoding="utf-8",
+    )
+    setup_py = plan.build_dir / "setup.py"
+    setup_py.write_text(
+        """
+def x(ext):
+    subprocess.check_call([CMAKE_EXE, '--build', BUILD_DIR, '--target', ext.target],
+                          cwd=BUILD_DIR)
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    calls: list[tuple[list[str], Path | None]] = []
+
+    def fake_run_command(command: list[str], *, cwd: Path | None = None) -> CommandResult:
+        calls.append((command, cwd))
+        return CommandResult(command=command, cwd=cwd, returncode=0)
+
+    monkeypatch.setattr("pmanager.build.run_command", fake_run_command)
+
+    wheel_vtk(plan)
+
+    patched = setup_py.read_text(encoding="utf-8")
+    assert "'--config', 'Release'" in patched
+    assert calls == [
+        (plan.wheel_tools_command, None),
+        (plan.wheel_command, plan.build_dir),
+    ]
 
 
 def test_build_vtk_cli_runs_build_step(monkeypatch, tmp_path: Path) -> None:

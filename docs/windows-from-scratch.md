@@ -35,7 +35,7 @@ From a Visual Studio developer `cmd.exe` prompt:
 cd /d D:\dev\VIBECODING\sandbox-vtk-python
 python scripts\bootstrap-dev-env.py
 .venvs\pmanager-dev\Scripts\activate.bat
-pmanager workflow windows-phase1
+pmanager workflow windows-phase1 --backend vs
 ```
 
 This workflow runs the validated sequence:
@@ -249,3 +249,41 @@ Capture and keep:
   - `sync-venv`
   - runtime provenance
   - import order
+
+## Troubleshooting: `CL.exe` exited with `-1073741819`
+
+If you see:
+
+```text
+error MSB6006: "CL.exe" exited with code -1073741819
+```
+
+this is an access violation (`0xC0000005`) in the MSVC compiler process.
+On some machines this happens in `c2.dll` (optimizer) under heavy parallel
+build pressure.
+
+Recommended sequence:
+
+1. Retry with lower parallelism from a Visual Studio developer `cmd.exe`:
+
+```bat
+cd /d D:\dev\VIBECODING\sandbox-vtk-python
+python scripts\bootstrap-dev-env.py
+.venvs\pmanager-dev\Scripts\activate.bat
+pmanager workflow windows-phase1 --backend vs --parallel 4
+```
+
+If the machine is memory-constrained, try `--parallel 2`.
+
+2. If build already configured, resume step-by-step with reduced parallelism:
+
+```bat
+pmanager build vtk --target win-amd64-msvc2022-py310-release --backend vs --build --parallel 2
+pmanager build vtk --target win-amd64-msvc2022-py310-release --backend vs --install
+pmanager build vtk --target win-amd64-msvc2022-py310-release --backend vs --wheel
+pmanager sync venv --target win-amd64-msvc2022-py310-release
+```
+
+3. If the same crash persists at low parallelism, update Visual Studio 2022
+to the latest v143 toolset and rerun the same command. This is typically a
+toolchain bug rather than a project-source error.

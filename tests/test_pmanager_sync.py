@@ -7,8 +7,10 @@ from pmanager.paths import ProjectPaths
 from pmanager.process import CommandResult
 from pmanager.sync import (
     SyncError,
+    codecpp_build_env,
     find_vtk_wheel,
     make_venv_sync_plan,
+    resolve_vtk_cmake_dir,
     stage_vtk_runtime_windows,
     sync_venv,
     target_command_env,
@@ -28,7 +30,63 @@ def test_make_venv_sync_plan_uses_target_layout(tmp_path: Path) -> None:
     assert plan.constraints_file == tmp_path / "constraints" / "py310.txt"
     assert plan.wheelhouse_dir == tmp_path / "external" / "wheelhouse" / "vtk-9.3.1" / target
     assert plan.sdk_dir == tmp_path / "external" / "install" / "vtk-9.3.1" / target / "sdk"
+    assert plan.vtk_build_dir == tmp_path / "external" / "build" / "vtk-9.3.1" / target
     assert plan.audit_script == tmp_path / "scripts" / "validate" / "audit-environment.py"
+
+
+def test_resolve_vtk_cmake_dir_prefers_sdk(tmp_path: Path) -> None:
+    plan = make_venv_sync_plan(
+        target_name="win-amd64-msvc2022-py310-release",
+        paths=ProjectPaths(root=tmp_path),
+    )
+    cmake_dir = plan.sdk_dir / "lib" / "cmake" / "vtk-9.3"
+    cmake_dir.mkdir(parents=True)
+    (cmake_dir / "vtk-config.cmake").write_text("", encoding="utf-8")
+
+    resolved = resolve_vtk_cmake_dir(plan)
+
+    assert resolved == cmake_dir
+
+
+def test_resolve_vtk_cmake_dir_falls_back_to_build_tree(tmp_path: Path) -> None:
+    plan = make_venv_sync_plan(
+        target_name="win-amd64-msvc2022-py310-release",
+        paths=ProjectPaths(root=tmp_path),
+    )
+    plan.vtk_build_dir.mkdir(parents=True)
+    (plan.vtk_build_dir / "vtk-config.cmake").write_text("", encoding="utf-8")
+
+    resolved = resolve_vtk_cmake_dir(plan)
+
+    assert resolved == plan.vtk_build_dir
+
+
+def test_resolve_vtk_cmake_dir_fails_if_missing(tmp_path: Path) -> None:
+    plan = make_venv_sync_plan(
+        target_name="win-amd64-msvc2022-py310-release",
+        paths=ProjectPaths(root=tmp_path),
+    )
+
+    try:
+        resolve_vtk_cmake_dir(plan)
+    except SyncError as exc:
+        assert "Unable to find VTK CMake package files" in str(exc)
+    else:  # pragma: no cover - defensive
+        raise AssertionError("Expected missing VTK CMake package failure")
+
+
+def test_codecpp_build_env_sets_vtk_dir_and_prefix(monkeypatch, tmp_path: Path) -> None:
+    plan = make_venv_sync_plan(
+        target_name="win-amd64-msvc2022-py310-release",
+        paths=ProjectPaths(root=tmp_path),
+    )
+    resolved = tmp_path / "external" / "build" / "vtk-9.3.1" / plan.target.name
+    monkeypatch.setattr("pmanager.sync.resolve_vtk_cmake_dir", lambda _: resolved)
+
+    env = codecpp_build_env(plan)
+
+    assert env["VTK_DIR"] == str(resolved)
+    assert env["CMAKE_PREFIX_PATH"] == os.pathsep.join([str(resolved), str(plan.sdk_dir), str(plan.vtk_build_dir)])
 
 
 def test_find_vtk_wheel_selects_newest(tmp_path: Path) -> None:
@@ -143,6 +201,7 @@ def test_sync_venv_runs_expected_commands(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr("pmanager.sync.run_command", fake_run_command)
     monkeypatch.setattr("pmanager.sync.run_command_text", lambda command, *, cwd=None, env=None: "9.3.1.dev0")
     monkeypatch.setattr("pmanager.sync.stage_vtk_runtime_windows", lambda plan, vtk_version, env: None)
+    monkeypatch.setattr("pmanager.sync.resolve_vtk_cmake_dir", lambda plan: plan.sdk_dir)
 
     sync_venv(plan)
 
@@ -151,7 +210,7 @@ def test_sync_venv_runs_expected_commands(monkeypatch, tmp_path: Path) -> None:
     assert calls[2][0][-1] == str(wheel)
     assert "pyvista" in calls[3][0]
     assert calls[4][0][-1] == str(plan.codecpp_dir)
-    assert calls[4][2] == str(plan.sdk_dir)
+    assert calls[4][2] == os.pathsep.join([str(plan.sdk_dir), str(plan.sdk_dir), str(plan.vtk_build_dir)])
     assert calls[5][0][-1] == str(plan.codepy_dir)
     assert calls[6][0][-1] == str(plan.pmanager_dir)
     assert plan.vtk_constraint_file.read_text(encoding="utf-8") == "vtk===9.3.1.dev0\n"
